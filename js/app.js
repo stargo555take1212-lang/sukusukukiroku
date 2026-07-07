@@ -49,13 +49,29 @@ function calcAgeText(birthdateStr) {
 
 // ---------------- ナビゲーション ----------------
 
-function navigateTo(screenName) {
+function showLoading(visible) {
+  document.getElementById('loading-overlay').classList.toggle('hidden', !visible);
+}
+
+async function navigateTo(screenName) {
   document.querySelectorAll('.screen').forEach((el) => {
     el.classList.toggle('hidden', el.dataset.screen !== screenName);
   });
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.nav === screenName);
   });
+
+  if (screenName !== 'settings' && Data.isConfigured()) {
+    showLoading(true);
+    try {
+      await Data.refresh();
+    } catch (err) {
+      alert('データの取得に失敗しました。通信状況を確認してください。\n' + err.message);
+    } finally {
+      showLoading(false);
+    }
+  }
+
   if (screenName === 'home') renderHome();
   if (screenName === 'feeding') renderFeedingScreen();
   if (screenName === 'growth') renderGrowthScreen();
@@ -65,7 +81,14 @@ function navigateTo(screenName) {
 
 function setupNav() {
   document.querySelectorAll('[data-nav]').forEach((el) => {
-    el.addEventListener('click', () => navigateTo(el.dataset.nav));
+    el.addEventListener('click', () => {
+      if (!Data.isConfigured() && el.dataset.nav !== 'settings') {
+        alert('まず設定画面でGAS連携のURLを登録してください');
+        navigateTo('settings');
+        return;
+      }
+      navigateTo(el.dataset.nav);
+    });
   });
 }
 
@@ -138,6 +161,11 @@ function renderHomeScheduleBadge() {
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('home-start-feeding-btn').addEventListener('click', () => {
+    if (!Data.isConfigured()) {
+      alert('まず設定画面でGAS連携のURLを登録してください');
+      navigateTo('settings');
+      return;
+    }
     navigateTo('feeding');
   });
 });
@@ -167,7 +195,7 @@ function setupFeedingScreen() {
   document.getElementById('manual-save-btn').addEventListener('click', saveManualEntry);
 }
 
-function toggleTimer() {
+async function toggleTimer() {
   const btn = document.getElementById('timer-toggle-btn');
   if (!timerStartTime) {
     timerStartTime = new Date();
@@ -175,12 +203,17 @@ function toggleTimer() {
     timerInterval = setInterval(updateTimerDisplay, 1000);
   } else {
     clearInterval(timerInterval);
-    const durationMin = Math.max(1, Math.round((new Date() - timerStartTime) / 60000));
-    Data.addFeeding({ type: 'breast', timestamp: timerStartTime.toISOString(), durationMin });
+    const startTime = timerStartTime;
+    const durationMin = Math.max(1, Math.round((new Date() - startTime) / 60000));
     timerStartTime = null;
     btn.textContent = '▶ 開始する';
     document.getElementById('timer-display').textContent = '00:00:00';
-    renderFeedingList();
+    try {
+      await Data.addFeeding({ type: 'breast', timestamp: startTime.toISOString(), durationMin });
+      renderFeedingList();
+    } catch (err) {
+      alert('保存に失敗しました: ' + err.message);
+    }
   }
 }
 
@@ -192,16 +225,20 @@ function updateTimerDisplay() {
   document.getElementById('timer-display').textContent = `${h}:${m}:${s}`;
 }
 
-function saveMilkEntry() {
+async function saveMilkEntry() {
   const input = document.getElementById('milk-amount-input');
   const amount = parseInt(input.value, 10);
   if (!amount || amount <= 0) { alert('ミルクの量を入力してください'); return; }
-  Data.addFeeding({ type: 'milk', timestamp: new Date().toISOString(), amountMl: amount });
-  input.value = '';
-  renderFeedingList();
+  try {
+    await Data.addFeeding({ type: 'milk', timestamp: new Date().toISOString(), amountMl: amount });
+    input.value = '';
+    renderFeedingList();
+  } catch (err) {
+    alert('保存に失敗しました: ' + err.message);
+  }
 }
 
-function saveManualEntry() {
+async function saveManualEntry() {
   const timeVal = document.getElementById('manual-time-input').value;
   const valueVal = parseFloat(document.getElementById('manual-value-input').value);
   if (!timeVal || !valueVal) { alert('時刻と数値を入力してください'); return; }
@@ -214,11 +251,15 @@ function saveManualEntry() {
   if (feedingType === 'breast') entry.durationMin = valueVal;
   else entry.amountMl = valueVal;
 
-  Data.addFeeding(entry);
-  document.getElementById('manual-time-input').value = '';
-  document.getElementById('manual-value-input').value = '';
-  document.getElementById('manual-entry-card').classList.add('hidden');
-  renderFeedingList();
+  try {
+    await Data.addFeeding(entry);
+    document.getElementById('manual-time-input').value = '';
+    document.getElementById('manual-value-input').value = '';
+    document.getElementById('manual-entry-card').classList.add('hidden');
+    renderFeedingList();
+  } catch (err) {
+    alert('保存に失敗しました: ' + err.message);
+  }
 }
 
 function renderFeedingScreen() {
@@ -249,10 +290,14 @@ function renderFeedingList() {
       </div>
       <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
     `;
-    item.querySelector('[data-action="delete"]').addEventListener('click', () => {
+    item.querySelector('[data-action="delete"]').addEventListener('click', async () => {
       if (confirm('この記録を削除しますか？')) {
-        Data.deleteFeeding(f.id);
-        renderFeedingList();
+        try {
+          await Data.deleteFeeding(f.id);
+          renderFeedingList();
+        } catch (err) {
+          alert('削除に失敗しました: ' + err.message);
+        }
       }
     });
     container.appendChild(item);
@@ -263,15 +308,19 @@ function renderFeedingList() {
 
 function setupGrowthScreen() {
   document.getElementById('growth-date-input').value = todayDateStr();
-  document.getElementById('growth-save-btn').addEventListener('click', () => {
+  document.getElementById('growth-save-btn').addEventListener('click', async () => {
     const date = document.getElementById('growth-date-input').value;
     const weight = parseInt(document.getElementById('growth-weight-input').value, 10);
     const height = parseFloat(document.getElementById('growth-height-input').value);
     if (!date || (!weight && !height)) { alert('日付と、体重または身長を入力してください'); return; }
-    Data.addGrowth({ date, weightG: weight || null, heightCm: height || null });
-    document.getElementById('growth-weight-input').value = '';
-    document.getElementById('growth-height-input').value = '';
-    renderGrowthScreen();
+    try {
+      await Data.addGrowth({ date, weightG: weight || null, heightCm: height || null });
+      document.getElementById('growth-weight-input').value = '';
+      document.getElementById('growth-height-input').value = '';
+      renderGrowthScreen();
+    } catch (err) {
+      alert('保存に失敗しました: ' + err.message);
+    }
   });
 }
 
@@ -344,10 +393,14 @@ function renderGrowthList(list) {
       </div>
       <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
     `;
-    item.querySelector('[data-action="delete"]').addEventListener('click', () => {
+    item.querySelector('[data-action="delete"]').addEventListener('click', async () => {
       if (confirm('この記録を削除しますか？')) {
-        Data.deleteGrowth(g.id);
-        renderGrowthScreen();
+        try {
+          await Data.deleteGrowth(g.id);
+          renderGrowthScreen();
+        } catch (err) {
+          alert('削除に失敗しました: ' + err.message);
+        }
       }
     });
     container.appendChild(item);
@@ -404,15 +457,19 @@ function setupScheduleScreen() {
   document.getElementById('schedule-add-toggle-btn').addEventListener('click', () => {
     document.getElementById('schedule-add-card').classList.toggle('hidden');
   });
-  document.getElementById('schedule-save-btn').addEventListener('click', () => {
+  document.getElementById('schedule-save-btn').addEventListener('click', async () => {
     const title = document.getElementById('schedule-title-input').value.trim();
     const date = document.getElementById('schedule-date-input').value;
     if (!title || !date) { alert('予定の名前と日付を入力してください'); return; }
-    Data.addScheduleCustom({ title, date });
-    document.getElementById('schedule-title-input').value = '';
-    document.getElementById('schedule-date-input').value = '';
-    document.getElementById('schedule-add-card').classList.add('hidden');
-    renderScheduleScreen();
+    try {
+      await Data.addScheduleCustom({ title, date });
+      document.getElementById('schedule-title-input').value = '';
+      document.getElementById('schedule-date-input').value = '';
+      document.getElementById('schedule-add-card').classList.add('hidden');
+      renderScheduleScreen();
+    } catch (err) {
+      alert('保存に失敗しました: ' + err.message);
+    }
   });
 }
 
@@ -435,9 +492,13 @@ function renderScheduleScreen() {
           <p class="record-item-sub">予定日: ${item.dateLabel}${item.done ? '（済み）' : ''}</p>
         </div>
       `;
-      el.querySelector('[data-action="toggle"]').addEventListener('click', () => {
-        Data.toggleAutoScheduleStatus(item.key);
-        renderScheduleScreen();
+      el.querySelector('[data-action="toggle"]').addEventListener('click', async () => {
+        try {
+          await Data.toggleAutoScheduleStatus(item.key);
+          renderScheduleScreen();
+        } catch (err) {
+          alert('更新に失敗しました: ' + err.message);
+        }
       });
       autoContainer.appendChild(el);
     });
@@ -460,14 +521,22 @@ function renderScheduleScreen() {
         </div>
         <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
       `;
-      el.querySelector('[data-action="toggle"]').addEventListener('click', () => {
-        Data.toggleScheduleCustom(item.id);
-        renderScheduleScreen();
-      });
-      el.querySelector('[data-action="delete"]').addEventListener('click', () => {
-        if (confirm('この予定を削除しますか？')) {
-          Data.deleteScheduleCustom(item.id);
+      el.querySelector('[data-action="toggle"]').addEventListener('click', async () => {
+        try {
+          await Data.toggleScheduleCustom(item.id);
           renderScheduleScreen();
+        } catch (err) {
+          alert('更新に失敗しました: ' + err.message);
+        }
+      });
+      el.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+        if (confirm('この予定を削除しますか？')) {
+          try {
+            await Data.deleteScheduleCustom(item.id);
+            renderScheduleScreen();
+          } catch (err) {
+            alert('削除に失敗しました: ' + err.message);
+          }
         }
       });
       customContainer.appendChild(el);
@@ -478,12 +547,33 @@ function renderScheduleScreen() {
 // ---------------- 設定画面 ----------------
 
 function setupSettingsScreen() {
-  document.getElementById('settings-save-btn').addEventListener('click', () => {
+  document.getElementById('settings-save-btn').addEventListener('click', async () => {
     const name = document.getElementById('settings-name-input').value.trim();
     const birthdate = document.getElementById('settings-birthdate-input').value;
-    Data.saveChild({ name, birthdate });
-    alert('保存しました');
-    renderHome();
+    try {
+      await Data.saveChild({ name, birthdate });
+      alert('保存しました');
+      renderHome();
+    } catch (err) {
+      alert('保存に失敗しました: ' + err.message);
+    }
+  });
+
+  document.getElementById('gas-url-save-btn').addEventListener('click', async () => {
+    const url = document.getElementById('gas-url-input').value.trim();
+    if (!url) { alert('URLを入力してください'); return; }
+    showLoading(true);
+    try {
+      Data.setGasUrl(url);
+      await Data.refresh();
+      alert('接続に成功しました');
+      renderSettingsScreen();
+      renderHome();
+    } catch (err) {
+      alert('接続に失敗しました。URLを確認してください。\n' + err.message);
+    } finally {
+      showLoading(false);
+    }
   });
 }
 
@@ -491,7 +581,8 @@ function renderSettingsScreen() {
   const child = Data.getChild();
   document.getElementById('settings-name-input').value = child.name || '';
   document.getElementById('settings-birthdate-input').value = child.birthdate || '';
-  document.getElementById('settings-share-code').textContent = child.shareCode;
+  document.getElementById('gas-url-input').value = Data.getGasUrl();
+  document.getElementById('gas-url-status').textContent = Data.isConfigured() ? '接続済み' : '未接続';
 }
 
 // ---------------- 初期化 ----------------
@@ -502,5 +593,5 @@ document.addEventListener('DOMContentLoaded', () => {
   setupGrowthScreen();
   setupScheduleScreen();
   setupSettingsScreen();
-  renderHome();
+  navigateTo(Data.isConfigured() ? 'home' : 'settings');
 });
