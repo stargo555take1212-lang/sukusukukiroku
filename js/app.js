@@ -47,7 +47,18 @@ function showLoading(visible) {
   document.getElementById('loading-overlay').classList.toggle('hidden', !visible);
 }
 
-async function navigateTo(screenName) {
+let currentScreen = null;
+
+function renderScreen(screenName) {
+  if (screenName === 'home') renderHome();
+  if (screenName === 'feeding') renderFeedingScreen();
+  if (screenName === 'growth') renderGrowthScreen();
+  if (screenName === 'schedule') renderScheduleScreen();
+  if (screenName === 'settings') renderSettingsScreen();
+}
+
+function navigateTo(screenName) {
+  currentScreen = screenName;
   document.querySelectorAll('.screen').forEach((el) => {
     el.classList.toggle('hidden', el.dataset.screen !== screenName);
   });
@@ -55,22 +66,22 @@ async function navigateTo(screenName) {
     btn.classList.toggle('active', btn.dataset.nav === screenName);
   });
 
+  // まずキャッシュ済みのデータで即座に描画し、最新データは裏で取得して届いたら差し替える
+  renderScreen(screenName);
+
   if (screenName !== 'settings' && Data.isConfigured()) {
     showLoading(true);
-    try {
-      await Data.refresh();
-    } catch (err) {
-      alert('データの取得に失敗しました。通信状況を確認してください。\n' + err.message);
-    } finally {
-      showLoading(false);
-    }
+    Data.refresh()
+      .then(() => {
+        if (currentScreen === screenName) renderScreen(screenName);
+      })
+      .catch((err) => {
+        console.error('データの取得に失敗しました', err);
+      })
+      .finally(() => {
+        showLoading(false);
+      });
   }
-
-  if (screenName === 'home') renderHome();
-  if (screenName === 'feeding') renderFeedingScreen();
-  if (screenName === 'growth') renderGrowthScreen();
-  if (screenName === 'schedule') renderScheduleScreen();
-  if (screenName === 'settings') renderSettingsScreen();
 }
 
 function setupNav() {
