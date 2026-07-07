@@ -366,7 +366,7 @@ function renderFeedingList() {
     const isBreast = f.type === 'breast';
     const sub = isBreast ? `母乳・${f.durationMin}分` : `ミルク・${f.amountMl}ml`;
     item.innerHTML = `
-      <div class="record-icon" style="background:${isBreast ? 'var(--c-pink-50)' : 'var(--c-purple-50)'}">${isBreast ? '💧' : '🍼'}</div>
+      <div class="record-icon" style="background:${isBreast ? 'var(--c-pink-50)' : 'var(--c-purple-50)'}">🍼</div>
       <div class="record-item-body">
         <p class="record-item-time">${formatTimeHM(new Date(f.timestamp))}</p>
         <p class="record-item-sub">${sub}</p>
