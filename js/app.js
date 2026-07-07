@@ -613,6 +613,31 @@ function setupSettingsScreen() {
       showLoading(false);
     }
   });
+
+  document.getElementById('gas-url-invite-btn').addEventListener('click', async () => {
+    const url = Data.getGasUrl();
+    if (!url) { alert('先にGASウェブアプリURLを登録してください'); return; }
+    const shareText = `「すくすくノート」のデータ共有用リンクです。\nアプリの設定画面にある「GAS ウェブアプリURL」欄にこのURLを貼り付けて「接続する」を押してください。\n\n${url}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'すくすくノート データ共有', text: shareText });
+      } catch (err) {
+        if (err.name !== 'AbortError') alert('共有に失敗しました: ' + err.message);
+      }
+      return;
+    }
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(shareText);
+        alert('共有メッセージをコピーしました。LINEやメールに貼り付けて送ってください。');
+      } catch (err) {
+        alert('コピーに失敗しました: ' + err.message);
+      }
+      return;
+    }
+    prompt('以下をコピーしてパートナーに送ってください', shareText);
+  });
 }
 
 function renderSettingsScreen() {
