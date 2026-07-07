@@ -617,7 +617,9 @@ function setupSettingsScreen() {
   document.getElementById('gas-url-invite-btn').addEventListener('click', async () => {
     const url = Data.getGasUrl();
     if (!url) { alert('先にGASウェブアプリURLを登録してください'); return; }
-    const shareText = `「すくすくノート」のデータ共有用リンクです。\nアプリの設定画面にある「GAS ウェブアプリURL」欄にこのURLを貼り付けて「接続する」を押してください。\n\n${url}`;
+    const appUrl = `${location.origin}${location.pathname}`;
+    const inviteUrl = `${appUrl}?gasUrl=${encodeURIComponent(url)}`;
+    const shareText = `「すくすくノート」に招待します。\n下のリンクを開いて「OK」を押すと、データ共有の設定が完了します。\n\n${inviteUrl}`;
 
     if (navigator.share) {
       try {
@@ -649,14 +651,37 @@ function renderSettingsScreen() {
   document.getElementById('gas-url-status').textContent = Data.isConfigured() ? '接続済み' : '未接続';
 }
 
+// ---------------- 招待リンク ----------------
+
+// パートナーが共有リンク(?gasUrl=...)を開いた場合、GAS連携URLを自動登録する
+async function handleInviteLink() {
+  const params = new URLSearchParams(location.search);
+  const incomingGasUrl = params.get('gasUrl');
+  if (!incomingGasUrl) return;
+  history.replaceState(null, '', location.pathname);
+
+  if (!confirm('共有された連携用リンクです。このデータに接続しますか？\n\n（今のデータ接続は上書きされます）')) return;
+  showLoading(true);
+  try {
+    Data.setGasUrl(incomingGasUrl);
+    await Data.refresh();
+    alert('接続に成功しました');
+  } catch (err) {
+    alert('接続に失敗しました。リンクを確認してください。\n' + err.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
 // ---------------- 初期化 ----------------
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   setupNav();
   setupFeedingScreen();
   setupGrowthScreen();
   setupScheduleScreen();
   setupSettingsScreen();
   setupAvatarUpload();
+  await handleInviteLink();
   navigateTo(Data.isConfigured() ? 'home' : 'settings');
 });
