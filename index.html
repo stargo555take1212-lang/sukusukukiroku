@@ -22,7 +22,11 @@
   <!-- ================= ホーム ================= -->
   <section class="screen" id="screen-home" data-screen="home">
     <header class="home-header">
-      <div class="avatar" id="home-avatar"><i class="icon">👶</i></div>
+      <div class="avatar-wrap">
+        <div class="avatar" id="home-avatar" role="button" aria-label="写真を変更"><i class="icon">👶</i></div>
+        <button class="avatar-edit-badge" id="avatar-edit-btn" aria-label="写真を変更">📷</button>
+      </div>
+      <input type="file" id="avatar-file-input" accept="image/*" class="hidden">
       <div class="home-header-text">
         <p class="child-name" id="home-child-name">お子さまの名前</p>
         <p class="child-age" id="home-child-age">生年月日を設定してください</p>

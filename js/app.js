@@ -99,6 +99,15 @@ function renderHome() {
   document.getElementById('home-child-name').textContent = child.name || 'お名前未設定';
   document.getElementById('home-child-age').textContent = calcAgeText(child.birthdate);
 
+  const avatarEl = document.getElementById('home-avatar');
+  if (child.photo) {
+    avatarEl.style.backgroundImage = `url(${child.photo})`;
+    avatarEl.innerHTML = '';
+  } else {
+    avatarEl.style.backgroundImage = '';
+    avatarEl.innerHTML = '<i class="icon">👶</i>';
+  }
+
   const feedings = Data.getFeedings();
   const now = new Date();
 
@@ -169,6 +178,75 @@ document.addEventListener('DOMContentLoaded', () => {
     navigateTo('feeding');
   });
 });
+
+// ---------------- 写真アップロード ----------------
+
+// スプレッドシートのセル容量に収まるよう、正方形に切り抜いてから
+// 文字数の上限内に収まるまで段階的に圧縮する
+function resizeImageToDataUrl(file, maxSize, maxChars) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+      img.onload = () => {
+        const size = Math.min(img.width, img.height);
+        const sx = (img.width - size) / 2;
+        const sy = (img.height - size) / 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, maxSize, maxSize);
+
+        let quality = 0.75;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+        while (dataUrl.length > maxChars && quality > 0.3) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        if (dataUrl.length > maxChars) {
+          reject(new Error('画像サイズが大きすぎます。別の写真でお試しください'));
+          return;
+        }
+        resolve(dataUrl);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function setupAvatarUpload() {
+  const fileInput = document.getElementById('avatar-file-input');
+  const openPicker = () => {
+    if (!Data.isConfigured()) {
+      alert('まず設定画面でGAS連携のURLを登録してください');
+      navigateTo('settings');
+      return;
+    }
+    fileInput.click();
+  };
+  document.getElementById('home-avatar').addEventListener('click', openPicker);
+  document.getElementById('avatar-edit-btn').addEventListener('click', openPicker);
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    showLoading(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 320, 45000);
+      await Data.saveChild({ photo: dataUrl });
+      renderHome();
+    } catch (err) {
+      alert('写真の保存に失敗しました: ' + err.message);
+    } finally {
+      showLoading(false);
+    }
+  });
+}
 
 // ---------------- 授乳記録画面 ----------------
 
@@ -593,5 +671,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupGrowthScreen();
   setupScheduleScreen();
   setupSettingsScreen();
+  setupAvatarUpload();
   navigateTo(Data.isConfigured() ? 'home' : 'settings');
 });
