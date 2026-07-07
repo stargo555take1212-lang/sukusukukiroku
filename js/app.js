@@ -622,19 +622,20 @@ function setupSettingsScreen() {
     if (navigator.share) {
       try {
         await navigator.share({ title: 'すくすくノート データ共有', text: shareText });
+        return; // 共有シートでの送信が完了
       } catch (err) {
-        if (err.name !== 'AbortError') alert('共有に失敗しました: ' + err.message);
+        // 端末やブラウザによってはユーザーが何もしていなくても失敗することがあるため、
+        // キャンセル(AbortError)かどうかにかかわらずコピーにフォールバックする
       }
-      return;
     }
     if (navigator.clipboard) {
       try {
         await navigator.clipboard.writeText(shareText);
         alert('共有メッセージをコピーしました。LINEやメールに貼り付けて送ってください。');
+        return;
       } catch (err) {
-        alert('コピーに失敗しました: ' + err.message);
+        // クリップボードも使えない場合はダイアログにフォールバック
       }
-      return;
     }
     prompt('以下をコピーしてパートナーに送ってください', shareText);
   });
