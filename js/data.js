@@ -21,13 +21,12 @@ let cache = {
   feedings: [],
   growth: [],
   scheduleCustom: [],
-  autoScheduleStatus: {},
 };
 
 function sortCache() {
   cache.feedings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   cache.growth.sort((a, b) => new Date(a.date) - new Date(b.date));
-  cache.scheduleCustom.sort((a, b) => new Date(a.date) - new Date(b.date));
+  cache.scheduleCustom.sort((a, b) => new Date(`${a.date}T${a.time || '00:00'}`) - new Date(`${b.date}T${b.time || '00:00'}`));
 }
 
 async function callGas(action, payload) {
@@ -61,7 +60,6 @@ const Data = {
     cache.feedings = data.feedings || [];
     cache.growth = data.growth || [];
     cache.scheduleCustom = data.scheduleCustom || [];
-    cache.autoScheduleStatus = data.autoScheduleStatus || {};
     sortCache();
   },
 
@@ -130,14 +128,5 @@ const Data = {
     const idx = cache.scheduleCustom.findIndex((s) => s.id === id);
     if (idx !== -1) cache.scheduleCustom[idx] = record;
     return record;
-  },
-
-  // ---------------- 予定(自動計算)の済みフラグ ----------------
-  getAutoScheduleStatus() {
-    return cache.autoScheduleStatus;
-  },
-  async toggleAutoScheduleStatus(key) {
-    cache.autoScheduleStatus = await callGas('toggleAutoScheduleStatus', { key });
-    return cache.autoScheduleStatus;
   },
 };

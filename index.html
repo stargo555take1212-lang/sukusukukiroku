@@ -164,17 +164,21 @@
   <section class="screen hidden" id="screen-schedule" data-screen="schedule">
     <header class="screen-header"><p class="screen-title">予定</p></header>
 
-    <p class="section-label">健診・K2シロップ（自動計算）</p>
-    <div id="schedule-auto-list" class="record-list"></div>
-
-    <p class="section-label">自分で追加した予定</p>
     <div id="schedule-custom-list" class="record-list"></div>
 
     <div class="card hidden" id="schedule-add-card">
       <label class="field-label">予定の名前</label>
       <input type="text" id="schedule-title-input" placeholder="予防接種（任意）">
-      <label class="field-label">予定日</label>
-      <input type="date" id="schedule-date-input">
+      <div class="field-row-2">
+        <div>
+          <label class="field-label">予定日</label>
+          <input type="date" id="schedule-date-input">
+        </div>
+        <div>
+          <label class="field-label">時刻（任意）</label>
+          <input type="time" id="schedule-time-input">
+        </div>
+      </div>
       <button class="btn btn-primary" id="schedule-save-btn">追加する</button>
     </div>
     <button class="btn btn-ghost btn-dashed" id="schedule-add-toggle-btn">+ 予定を追加する</button>

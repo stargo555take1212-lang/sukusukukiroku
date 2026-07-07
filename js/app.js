@@ -18,12 +18,6 @@ function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
 function addMonths(date, months) {
   const d = new Date(date);
   d.setMonth(d.getMonth() + months);
@@ -487,45 +481,28 @@ function renderGrowthList(list) {
 
 // ---------------- 予定画面 ----------------
 
-const AUTO_SCHEDULE_DEFS = [
-  { key: 'k2_1', label: 'K2シロップ 1回目', calc: (birth) => addDays(birth, 7) },
-  { key: 'checkup_2w', label: '2週間健診', calc: (birth) => addDays(birth, 14) },
-  { key: 'checkup_1m', label: '1か月健診', calc: (birth) => addMonths(birth, 1) },
-  { key: 'k2_2', label: 'K2シロップ 2回目', calc: (birth) => addMonths(birth, 1) },
-];
+function scheduleDateTime(item) {
+  return new Date(`${item.date}T${item.time || '00:00'}`);
+}
 
-function getAutoScheduleItems() {
-  const child = Data.getChild();
-  if (!child.birthdate) return [];
-  const birth = new Date(child.birthdate + 'T00:00:00');
-  const status = Data.getAutoScheduleStatus();
-  return AUTO_SCHEDULE_DEFS.map((def) => {
-    const date = def.calc(birth);
-    return {
-      key: def.key,
-      label: def.label,
-      date,
-      dateLabel: `${date.getMonth() + 1}/${date.getDate()}`,
-      done: !!status[def.key],
-    };
-  });
+function scheduleDateLabel(item) {
+  const d = new Date(`${item.date}T00:00:00`);
+  const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
+  return item.time ? `${dateStr} ${item.time}` : dateStr;
 }
 
 function getUpcomingScheduleItem() {
   const now = new Date();
-  const items = getAutoScheduleItems().filter((i) => !i.done);
-  const custom = Data.getScheduleCustom().filter((c) => !c.done).map((c) => ({
-    label: c.title,
-    date: new Date(c.date + 'T00:00:00'),
-  }));
-  const all = [...items, ...custom].map((i) => ({ ...i, dateObj: i.date }));
-  const withinRange = all.filter((i) => {
-    const diffDays = Math.floor((i.dateObj - now) / (1000 * 60 * 60 * 24));
-    return diffDays <= 7; // 過ぎたものも含め、1週間以内に近いものだけバッジ表示
-  });
-  if (withinRange.length === 0) return null;
-  withinRange.sort((a, b) => a.dateObj - b.dateObj);
-  const target = withinRange[0];
+  const upcoming = Data.getScheduleCustom()
+    .filter((c) => !c.done)
+    .map((c) => ({ label: c.title, dateObj: scheduleDateTime(c) }))
+    .filter((i) => {
+      const diffDays = Math.floor((i.dateObj - now) / (1000 * 60 * 60 * 24));
+      return diffDays <= 7; // 過ぎたものも含め、1週間以内に近いものだけバッジ表示
+    })
+    .sort((a, b) => a.dateObj - b.dateObj);
+  if (upcoming.length === 0) return null;
+  const target = upcoming[0];
   const diffDays = Math.floor((target.dateObj - now) / (1000 * 60 * 60 * 24));
   const dateLabel = `予定日: ${target.dateObj.getMonth() + 1}/${target.dateObj.getDate()}` + (diffDays >= 0 ? `（あと${diffDays}日）` : '（期日を過ぎています）');
   return { label: target.label, dateLabel };
@@ -538,11 +515,13 @@ function setupScheduleScreen() {
   document.getElementById('schedule-save-btn').addEventListener('click', async () => {
     const title = document.getElementById('schedule-title-input').value.trim();
     const date = document.getElementById('schedule-date-input').value;
+    const time = document.getElementById('schedule-time-input').value;
     if (!title || !date) { alert('予定の名前と日付を入力してください'); return; }
     try {
-      await Data.addScheduleCustom({ title, date });
+      await Data.addScheduleCustom({ title, date, time: time || null });
       document.getElementById('schedule-title-input').value = '';
       document.getElementById('schedule-date-input').value = '';
+      document.getElementById('schedule-time-input').value = '';
       document.getElementById('schedule-add-card').classList.add('hidden');
       renderScheduleScreen();
     } catch (err) {
@@ -552,36 +531,6 @@ function setupScheduleScreen() {
 }
 
 function renderScheduleScreen() {
-  const autoContainer = document.getElementById('schedule-auto-list');
-  const child = Data.getChild();
-
-  if (!child.birthdate) {
-    autoContainer.innerHTML = '<p class="empty-state">設定タブで生年月日を登録すると、健診・K2シロップの予定が自動で表示されます。</p>';
-  } else {
-    const items = getAutoScheduleItems();
-    autoContainer.innerHTML = '';
-    items.forEach((item) => {
-      const el = document.createElement('div');
-      el.className = 'record-item';
-      el.innerHTML = `
-        <button class="record-action" data-action="toggle" aria-label="完了を切り替え" style="font-size:20px">${item.done ? '✅' : '⚪'}</button>
-        <div class="record-item-body">
-          <p class="record-item-time" style="${item.done ? 'text-decoration:line-through;color:var(--text-muted)' : ''}">${item.label}</p>
-          <p class="record-item-sub">予定日: ${item.dateLabel}${item.done ? '（済み）' : ''}</p>
-        </div>
-      `;
-      el.querySelector('[data-action="toggle"]').addEventListener('click', async () => {
-        try {
-          await Data.toggleAutoScheduleStatus(item.key);
-          renderScheduleScreen();
-        } catch (err) {
-          alert('更新に失敗しました: ' + err.message);
-        }
-      });
-      autoContainer.appendChild(el);
-    });
-  }
-
   const customContainer = document.getElementById('schedule-custom-list');
   const customList = Data.getScheduleCustom();
   if (customList.length === 0) {
@@ -595,7 +544,7 @@ function renderScheduleScreen() {
         <button class="record-action" data-action="toggle" aria-label="完了を切り替え" style="font-size:20px">${item.done ? '✅' : '⚪'}</button>
         <div class="record-item-body">
           <p class="record-item-time" style="${item.done ? 'text-decoration:line-through;color:var(--text-muted)' : ''}">${item.title}</p>
-          <p class="record-item-sub">予定日: ${item.date}</p>
+          <p class="record-item-sub">予定日: ${scheduleDateLabel(item)}</p>
         </div>
         <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
       `;

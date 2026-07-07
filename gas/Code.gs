@@ -15,8 +15,7 @@ const SHEET_DEFS = {
   CHILD: { name: 'Child', headers: ['name', 'birthdate', 'photo'], textColumns: ['birthdate'] },
   FEEDINGS: { name: 'Feedings', headers: ['id', 'type', 'timestamp', 'durationMin', 'amountMl'], textColumns: ['id', 'timestamp'] },
   GROWTH: { name: 'Growth', headers: ['id', 'date', 'weightG', 'heightCm'], textColumns: ['id', 'date'] },
-  SCHEDULE_CUSTOM: { name: 'ScheduleCustom', headers: ['id', 'title', 'date', 'done'], textColumns: ['id', 'date'] },
-  SCHEDULE_AUTO_STATUS: { name: 'ScheduleAutoStatus', headers: ['key', 'done'], textColumns: ['key'] },
+  SCHEDULE_CUSTOM: { name: 'ScheduleCustom', headers: ['id', 'title', 'date', 'time', 'done'], textColumns: ['id', 'date', 'time'] },
 };
 
 function doGet(e) {
@@ -53,7 +52,6 @@ function handleAction(action, payload) {
     case 'addScheduleCustom': return addScheduleCustom(payload);
     case 'deleteScheduleCustom': return deleteScheduleCustom(payload.id);
     case 'toggleScheduleCustom': return toggleScheduleCustom(payload.id);
-    case 'toggleAutoScheduleStatus': return toggleAutoScheduleStatus(payload.key);
     default: throw new Error('未対応のaction: ' + action);
   }
 }
@@ -210,33 +208,6 @@ function toggleScheduleCustom(id) {
   return current;
 }
 
-// ---------------- 予定(自動計算)の済みフラグ ----------------
-
-function toggleAutoScheduleStatus(key) {
-  const def = SHEET_DEFS.SCHEDULE_AUTO_STATUS;
-  const sheet = getSheet(def);
-  const values = sheet.getDataRange().getValues();
-  let rowNum = -1;
-  for (let r = 1; r < values.length; r++) {
-    if (values[r][0] === key) { rowNum = r + 1; break; }
-  }
-  if (rowNum === -1) {
-    sheet.appendRow([key, true]);
-  } else {
-    const newDone = !values[rowNum - 1][1];
-    sheet.getRange(rowNum, 2).setValue(newDone);
-  }
-  return getAutoScheduleStatusMap(sheet);
-}
-
-function getAutoScheduleStatusMap(sheet) {
-  sheet = sheet || getSheet(SHEET_DEFS.SCHEDULE_AUTO_STATUS);
-  const rows = sheetToObjects(sheet);
-  const map = {};
-  rows.forEach((r) => { map[r.key] = !!r.done; });
-  return map;
-}
-
 // ---------------- 全件取得 ----------------
 
 function getAll() {
@@ -245,7 +216,6 @@ function getAll() {
     feedings: sheetToObjects(getSheet(SHEET_DEFS.FEEDINGS)).map(stripRow),
     growth: sheetToObjects(getSheet(SHEET_DEFS.GROWTH)).map(stripRow),
     scheduleCustom: sheetToObjects(getSheet(SHEET_DEFS.SCHEDULE_CUSTOM)).map(stripRow),
-    autoScheduleStatus: getAutoScheduleStatusMap(),
   };
 }
 
