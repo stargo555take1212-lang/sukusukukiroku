@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>すくすくノート | 授乳・成長記録</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-frame">
+<div id="app">
+
+  <!-- ================= ホーム ================= -->
+  <section class="screen" id="screen-home" data-screen="home">
+    <header class="home-header">
+      <div class="avatar" id="home-avatar"><i class="icon">👶</i></div>
+      <div class="home-header-text">
+        <p class="child-name" id="home-child-name">お子さまの名前</p>
+        <p class="child-age" id="home-child-age">生年月日を設定してください</p>
+      </div>
+      <button class="icon-btn" data-nav="settings" aria-label="設定を開く">⚙️</button>
+    </header>
+
+    <div id="home-schedule-badge" class="schedule-badge hidden">
+      <span class="schedule-badge-icon">⏰</span>
+      <div>
+        <p class="schedule-badge-title" id="schedule-badge-title"></p>
+        <p class="schedule-badge-date" id="schedule-badge-date"></p>
+      </div>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric-card metric-pink">
+        <p class="metric-label">最後の授乳から</p>
+        <p class="metric-value" id="metric-elapsed">--</p>
+      </div>
+      <div class="metric-card metric-purple">
+        <p class="metric-label">今日の回数</p>
+        <p class="metric-value" id="metric-count">0回</p>
+      </div>
+      <div class="metric-card metric-teal">
+        <p class="metric-label">今日の合計量</p>
+        <p class="metric-value" id="metric-volume">0ml</p>
+      </div>
+      <div class="metric-card metric-amber">
+        <p class="metric-label">体重（最新）</p>
+        <p class="metric-value" id="metric-weight">--</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-label">直近の授乳パターン（時間帯別）</p>
+      <div class="bar-chart" id="home-bar-chart"></div>
+      <div class="bar-chart-axis"><span>0時</span><span>23時</span></div>
+    </div>
+
+    <button class="btn btn-primary btn-large" id="home-start-feeding-btn">
+      ▶ 授乳をはじめる
+    </button>
+  </section>
+
+  <!-- ================= 授乳記録 ================= -->
+  <section class="screen hidden" id="screen-feeding" data-screen="feeding">
+    <header class="screen-header"><p class="screen-title">授乳記録</p></header>
+
+    <div class="segmented" id="feeding-type-segmented">
+      <button class="segmented-btn active" data-type="breast">母乳</button>
+      <button class="segmented-btn" data-type="milk">ミルク</button>
+    </div>
+
+    <!-- 母乳: タイマー -->
+    <div class="card card-pink" id="breast-timer-card">
+      <p class="card-label card-label-pink">授乳タイマー</p>
+      <p class="timer-display" id="timer-display">00:00:00</p>
+      <button class="btn btn-primary" id="timer-toggle-btn">▶ 開始する</button>
+    </div>
+
+    <!-- ミルク: ml入力 -->
+    <div class="card hidden" id="milk-input-card">
+      <p class="card-label">ミルクの量</p>
+      <div class="field-row">
+        <input type="number" id="milk-amount-input" placeholder="120" inputmode="numeric">
+        <span class="field-suffix">ml</span>
+      </div>
+      <button class="btn btn-primary" id="milk-save-btn">記録する</button>
+    </div>
+
+    <button class="btn btn-ghost btn-small" id="manual-entry-toggle-btn">✎ 時刻と分数を手入力する</button>
+
+    <div class="card hidden" id="manual-entry-card">
+      <p class="card-label">手入力</p>
+      <label class="field-label">時刻</label>
+      <input type="time" id="manual-time-input">
+      <label class="field-label" id="manual-value-label">授乳時間（分）</label>
+      <input type="number" id="manual-value-input" placeholder="10" inputmode="numeric">
+      <button class="btn btn-primary" id="manual-save-btn">記録する</button>
+    </div>
+
+    <p class="section-label">今日の記録</p>
+    <div id="feeding-list" class="record-list"></div>
+  </section>
+
+  <!-- ================= 成長記録 ================= -->
+  <section class="screen hidden" id="screen-growth" data-screen="growth">
+    <header class="screen-header"><p class="screen-title">成長記録</p></header>
+
+    <div class="card">
+      <p class="card-label">新しい記録を追加</p>
+      <label class="field-label">日付</label>
+      <input type="date" id="growth-date-input">
+      <div class="field-row-2">
+        <div>
+          <label class="field-label">体重(g)</label>
+          <input type="number" id="growth-weight-input" placeholder="6120" inputmode="numeric">
+        </div>
+        <div>
+          <label class="field-label">身長(cm)</label>
+          <input type="number" id="growth-height-input" placeholder="61.5" inputmode="decimal" step="0.1">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="growth-save-btn" style="background:var(--c-green-600)">記録する</button>
+    </div>
+
+    <div class="card">
+      <p class="card-label">体重の推移</p>
+      <p class="growth-current-value" id="growth-weight-current">--</p>
+      <svg viewBox="0 0 300 80" class="growth-svg" id="growth-weight-svg"></svg>
+      <div class="bar-chart-axis" id="growth-weight-axis"></div>
+    </div>
+
+    <div class="card">
+      <p class="card-label">身長の推移</p>
+      <p class="growth-current-value" id="growth-height-current">--</p>
+      <svg viewBox="0 0 300 80" class="growth-svg" id="growth-height-svg"></svg>
+      <div class="bar-chart-axis" id="growth-height-axis"></div>
+    </div>
+
+    <p class="section-label">記録一覧</p>
+    <div id="growth-list" class="record-list"></div>
+  </section>
+
+  <!-- ================= 予定 ================= -->
+  <section class="screen hidden" id="screen-schedule" data-screen="schedule">
+    <header class="screen-header"><p class="screen-title">予定</p></header>
+
+    <p class="section-label">健診・K2シロップ（自動計算）</p>
+    <div id="schedule-auto-list" class="record-list"></div>
+
+    <p class="section-label">自分で追加した予定</p>
+    <div id="schedule-custom-list" class="record-list"></div>
+
+    <div class="card hidden" id="schedule-add-card">
+      <label class="field-label">予定の名前</label>
+      <input type="text" id="schedule-title-input" placeholder="予防接種（任意）">
+      <label class="field-label">予定日</label>
+      <input type="date" id="schedule-date-input">
+      <button class="btn btn-primary" id="schedule-save-btn">追加する</button>
+    </div>
+    <button class="btn btn-ghost btn-dashed" id="schedule-add-toggle-btn">+ 予定を追加する</button>
+  </section>
+
+  <!-- ================= 設定 ================= -->
+  <section class="screen hidden" id="screen-settings" data-screen="settings">
+    <header class="screen-header"><p class="screen-title">設定</p></header>
+
+    <div class="card">
+      <p class="card-label">お子さまの情報</p>
+      <label class="field-label">名前</label>
+      <input type="text" id="settings-name-input" placeholder="ゆうくん">
+      <label class="field-label">生年月日</label>
+      <input type="date" id="settings-birthdate-input">
+      <p class="hint-text">ℹ️ 月齢・日齢は自動計算されます</p>
+    </div>
+
+    <div class="card">
+      <p class="card-label">データ共有</p>
+      <div class="share-row">
+        <div>
+          <p class="share-title">共有コード</p>
+          <p class="share-desc">パートナーと同じコードで同期</p>
+        </div>
+        <span class="share-code" id="settings-share-code">------</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-large" id="settings-save-btn">保存する</button>
+  </section>
+
+</div>
+
+<!-- ================= ボトムナビ ================= -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-nav="home"><span class="nav-icon">🏠</span><span>ホーム</span></button>
+  <button class="nav-btn" data-nav="feeding"><span class="nav-icon">🍼</span><span>授乳記録</span></button>
+  <button class="nav-btn" data-nav="growth"><span class="nav-icon">📈</span><span>成長記録</span></button>
+  <button class="nav-btn" data-nav="schedule"><span class="nav-icon">📅</span><span>予定</span></button>
+  <button class="nav-btn" data-nav="settings"><span class="nav-icon">⚙️</span><span>設定</span></button>
+</nav>
+
+</div><!-- /.app-frame -->
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
