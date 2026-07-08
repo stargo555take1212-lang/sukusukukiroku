@@ -110,6 +110,18 @@ function renderScreen(screenName) {
   if (screenName === 'settings') renderSettingsScreen();
 }
 
+// 書き込みが失敗した際、通信が不安定なだけで実際はGAS側で成功している
+// ことがあるため、最新状態を取り直して画面を実態に合わせ直す
+async function resyncAfterError() {
+  if (!Data.isConfigured()) return;
+  try {
+    await Data.refresh();
+    if (currentScreen) renderScreen(currentScreen);
+  } catch (err) {
+    console.error('再同期に失敗しました', err);
+  }
+}
+
 function navigateTo(screenName) {
   currentScreen = screenName;
   document.querySelectorAll('.screen').forEach((el) => {
@@ -366,6 +378,7 @@ async function toggleTimer() {
       renderFeedingList();
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
+      await resyncAfterError();
     } finally {
       setButtonBusy(btn, false);
       btn.textContent = '▶ 開始する';
@@ -393,6 +406,7 @@ async function saveMilkEntry() {
     renderFeedingList();
   } catch (err) {
     alert('保存に失敗しました: ' + err.message);
+    await resyncAfterError();
   } finally {
     setButtonBusy(btn, false);
   }
@@ -427,6 +441,7 @@ async function saveManualEntry() {
     renderFeedingList();
   } catch (err) {
     alert('保存に失敗しました: ' + err.message);
+    await resyncAfterError();
   } finally {
     setButtonBusy(btn, false);
   }
@@ -474,6 +489,7 @@ function renderFeedingList() {
         } catch (err) {
           alert('削除に失敗しました: ' + err.message);
           setButtonBusy(e.target, false);
+          await resyncAfterError();
         }
       }
     });
@@ -498,6 +514,7 @@ function setupGrowthScreen() {
       renderGrowthScreen();
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
+      await resyncAfterError();
     } finally {
       setButtonBusy(e.target, false);
     }
@@ -582,6 +599,7 @@ function renderGrowthList(list) {
         } catch (err) {
           alert('削除に失敗しました: ' + err.message);
           setButtonBusy(e.target, false);
+          await resyncAfterError();
         }
       }
     });
@@ -641,6 +659,7 @@ function setupScheduleScreen() {
       renderScheduleScreen();
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
+      await resyncAfterError();
     } finally {
       setButtonBusy(e.target, false);
     }
@@ -671,6 +690,7 @@ function renderScheduleScreen() {
           renderScheduleScreen();
         } catch (err) {
           alert('更新に失敗しました: ' + err.message);
+          await resyncAfterError();
         }
       });
       el.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
@@ -682,6 +702,7 @@ function renderScheduleScreen() {
           } catch (err) {
             alert('削除に失敗しました: ' + err.message);
             setButtonBusy(e.target, false);
+            await resyncAfterError();
           }
         }
       });
@@ -702,6 +723,7 @@ function setupSettingsScreen() {
       renderHome();
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
+      await resyncAfterError();
     }
   });
 
