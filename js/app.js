@@ -609,10 +609,16 @@ function renderGrowthScreen() {
   renderGrowthList(list);
 }
 
+// 日時付き文字列(スプレッドシート側で日付型に化けた場合など)が来ても
+// 日付部分だけを安全に取り出す
+function toDateOnly(str) {
+  return String(str).slice(0, 10);
+}
+
 // 生年月日からの月齢(小数)を計算する。1か月を30.4368日として近似する
 function ageInMonths(birthdateStr, dateStr) {
-  const birth = new Date(`${birthdateStr}T00:00:00`);
-  const date = new Date(`${dateStr}T00:00:00`);
+  const birth = new Date(`${toDateOnly(birthdateStr)}T00:00:00`);
+  const date = new Date(`${toDateOnly(dateStr)}T00:00:00`);
   return (date - birth) / (1000 * 60 * 60 * 24) / 30.4368;
 }
 
