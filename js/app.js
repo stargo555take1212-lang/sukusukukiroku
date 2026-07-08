@@ -36,6 +36,23 @@ function setButtonBusy(btn, busy, busyText = '保存中…') {
   }
 }
 
+// 削除確定後、応答を待たずにその場で「削除中」であることが分かるようにする
+// (成功時は一覧ごと再描画されて消えるため、失敗時のみ元に戻す)
+function markRowRemoving(item) {
+  const sub = item.querySelector('.record-item-sub');
+  item.classList.add('removing');
+  if (sub) {
+    sub.dataset.originalText = sub.textContent;
+    sub.textContent = '削除中…';
+  }
+}
+
+function unmarkRowRemoving(item) {
+  const sub = item.querySelector('.record-item-sub');
+  item.classList.remove('removing');
+  if (sub && sub.dataset.originalText) sub.textContent = sub.dataset.originalText;
+}
+
 // ネイティブの<input type="time">がAndroidの一部端末でボタンが見切れる不具合があるため、
 // 時/分のプルダウンで代用する
 function populateTimeSelects(hourEl, minuteEl, minuteStep = 1) {
@@ -483,12 +500,14 @@ function renderFeedingList() {
     item.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
       if (confirm('この記録を削除しますか？')) {
         setButtonBusy(e.target, true, '…');
+        markRowRemoving(item);
         try {
           await Data.deleteFeeding(f.id);
           renderFeedingList();
         } catch (err) {
           alert('削除に失敗しました: ' + err.message);
           setButtonBusy(e.target, false);
+          unmarkRowRemoving(item);
           await resyncAfterError();
         }
       }
@@ -593,12 +612,14 @@ function renderGrowthList(list) {
     item.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
       if (confirm('この記録を削除しますか？')) {
         setButtonBusy(e.target, true, '…');
+        markRowRemoving(item);
         try {
           await Data.deleteGrowth(g.id);
           renderGrowthScreen();
         } catch (err) {
           alert('削除に失敗しました: ' + err.message);
           setButtonBusy(e.target, false);
+          unmarkRowRemoving(item);
           await resyncAfterError();
         }
       }
@@ -696,12 +717,14 @@ function renderScheduleScreen() {
       el.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
         if (confirm('この予定を削除しますか？')) {
           setButtonBusy(e.target, true, '…');
+          markRowRemoving(el);
           try {
             await Data.deleteScheduleCustom(item.id);
             renderScheduleScreen();
           } catch (err) {
             alert('削除に失敗しました: ' + err.message);
             setButtonBusy(e.target, false);
+            unmarkRowRemoving(el);
             await resyncAfterError();
           }
         }
