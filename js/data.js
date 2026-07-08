@@ -54,13 +54,24 @@ const Data = {
     localStorage.setItem(STORAGE_KEYS.GAS_URL, url.trim());
   },
 
-  async refresh() {
-    const data = await callGas('getAll');
-    cache.child = data.child || { name: '', birthdate: '' };
-    cache.feedings = data.feedings || [];
-    cache.growth = data.growth || [];
-    cache.scheduleCustom = data.scheduleCustom || [];
-    sortCache();
+  // 画面遷移や失敗時の再同期など複数箇所から呼ばれるため、同時に複数の
+  // getAllが飛ぶと後から届いた古い応答が新しい状態を上書きしてしまう。
+  // 実行中のリクエストがあればそれを使い回すことで1回にまとめる。
+  refresh() {
+    if (this._inflightRefresh) return this._inflightRefresh;
+    this._inflightRefresh = (async () => {
+      try {
+        const data = await callGas('getAll');
+        cache.child = data.child || { name: '', birthdate: '' };
+        cache.feedings = data.feedings || [];
+        cache.growth = data.growth || [];
+        cache.scheduleCustom = data.scheduleCustom || [];
+        sortCache();
+      } finally {
+        this._inflightRefresh = null;
+      }
+    })();
+    return this._inflightRefresh;
   },
 
   // ---------------- 子どもの情報 ----------------
