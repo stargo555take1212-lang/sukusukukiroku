@@ -170,6 +170,26 @@ function navigateTo(screenName) {
   }
 }
 
+// 各タブの更新ボタン。ブラウザ標準の引っ張って更新の代わりに使う
+function setupRefreshButtons() {
+  document.querySelectorAll('[data-refresh]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!Data.isConfigured() || btn.disabled) return;
+      btn.disabled = true;
+      btn.classList.add('spinning');
+      try {
+        await Data.refresh();
+        if (currentScreen) renderScreen(currentScreen);
+      } catch (err) {
+        alert('更新に失敗しました: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('spinning');
+      }
+    });
+  });
+}
+
 function setupNav() {
   document.querySelectorAll('[data-nav]').forEach((el) => {
     el.addEventListener('click', () => {
@@ -851,6 +871,7 @@ async function handleInviteLink() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupNav();
+  setupRefreshButtons();
   setupHomeScreen();
   setupFeedingScreen();
   setupGrowthScreen();

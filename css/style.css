@@ -43,6 +43,7 @@ html, body {
   font-family: 'Zen Maru Gothic', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: contain;
 }
 
 /* スマホ本体の画面幅(430px)より広いウィンドウでは、
@@ -56,6 +57,7 @@ html, body {
   position: relative;
   display: flex;
   flex-direction: column;
+  overscroll-behavior-y: contain;
 }
 @media (min-width: 431px) {
   .app-frame {
@@ -109,6 +111,7 @@ html, body {
   background: none; border: none; font-size: 20px; cursor: pointer;
   color: var(--text-muted); padding: 6px;
 }
+.icon-btn.spinning { display: inline-block; animation: spin 0.8s linear infinite; }
 
 /* ---------- Schedule badge ---------- */
 .schedule-badge {
@@ -239,7 +242,7 @@ input[type="text"], input[type="number"], input[type="date"], input[type="time"]
 .empty-state { font-size: 13px; color: var(--text-muted); padding: 10px 2px; }
 
 /* ---------- Screen header ---------- */
-.screen-header { margin-bottom: 14px; }
+.screen-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .screen-title { font-size: 18px; font-weight: 700; margin: 0; }
 .section-label { font-size: 12px; color: var(--text-secondary); margin: 0 0 8px; font-weight: 500; }
 

@@ -39,6 +39,7 @@
         <p class="child-name" id="home-child-name">お子さまの名前</p>
         <p class="child-age" id="home-child-age">生年月日を設定してください</p>
       </div>
+      <button class="icon-btn" data-refresh aria-label="更新">⟳</button>
       <button class="icon-btn" data-nav="settings" aria-label="設定を開く">⚙️</button>
     </header>
 
@@ -86,7 +87,7 @@
 
   <!-- ================= 授乳記録 ================= -->
   <section class="screen hidden" id="screen-feeding" data-screen="feeding">
-    <header class="screen-header"><p class="screen-title">授乳記録</p></header>
+    <header class="screen-header"><p class="screen-title">授乳記録</p><button class="icon-btn" data-refresh aria-label="更新">⟳</button></header>
 
     <div class="segmented" id="feeding-type-segmented">
       <button class="segmented-btn active" data-type="breast">母乳</button>
@@ -144,7 +145,7 @@
 
   <!-- ================= 成長記録 ================= -->
   <section class="screen hidden" id="screen-growth" data-screen="growth">
-    <header class="screen-header"><p class="screen-title">成長記録</p></header>
+    <header class="screen-header"><p class="screen-title">成長記録</p><button class="icon-btn" data-refresh aria-label="更新">⟳</button></header>
 
     <div class="card">
       <p class="card-label">新しい記録を追加</p>
@@ -183,7 +184,7 @@
 
   <!-- ================= 予定 ================= -->
   <section class="screen hidden" id="screen-schedule" data-screen="schedule">
-    <header class="screen-header"><p class="screen-title">予定</p></header>
+    <header class="screen-header"><p class="screen-title">予定</p><button class="icon-btn" data-refresh aria-label="更新">⟳</button></header>
 
     <div id="schedule-custom-list" class="record-list"></div>
 
