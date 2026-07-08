@@ -70,7 +70,11 @@
     </div>
 
     <div class="card">
-      <p class="card-label">直近の授乳パターン（時間帯別）</p>
+      <div class="date-nav">
+        <button class="icon-btn" id="home-chart-date-prev" aria-label="前の日">◀</button>
+        <p class="card-label date-nav-label" id="home-chart-date-label">直近の授乳パターン（時間帯別）</p>
+        <button class="icon-btn" id="home-chart-date-next" aria-label="次の日">▶</button>
+      </div>
       <div class="bar-chart" id="home-bar-chart"></div>
       <div class="bar-chart-axis"><span>0時</span><span>3時</span><span>6時</span><span>9時</span><span>12時</span><span>15時</span><span>18時</span><span>21時</span><span>24時</span></div>
     </div>

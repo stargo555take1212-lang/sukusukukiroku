@@ -150,6 +150,7 @@ function navigateTo(screenName) {
 
   // タブへの新規遷移時は表示日を今日にリセットする(裏での再描画時はリセットしない)
   if (screenName === 'feeding') feedingViewDate = new Date();
+  if (screenName === 'home') homeChartDate = new Date();
 
   // まずキャッシュ済みのデータで即座に描画し、最新データは裏で取得して届いたら差し替える
   renderScreen(screenName);
@@ -183,6 +184,24 @@ function setupNav() {
 }
 
 // ---------------- ホーム画面 ----------------
+
+let homeChartDate = new Date();
+
+function homeChartDateLabel(date) {
+  if (isSameDay(date, new Date())) return '直近の授乳パターン（時間帯別）';
+  return `${date.getMonth() + 1}/${date.getDate()}の授乳パターン（時間帯別）`;
+}
+
+function setupHomeScreen() {
+  document.getElementById('home-chart-date-prev').addEventListener('click', () => {
+    homeChartDate = shiftDate(homeChartDate, -1);
+    renderHome();
+  });
+  document.getElementById('home-chart-date-next').addEventListener('click', () => {
+    homeChartDate = shiftDate(homeChartDate, 1);
+    renderHome();
+  });
+}
 
 function renderHome() {
   const child = Data.getChild();
@@ -224,16 +243,16 @@ function renderHome() {
   const weightEl = document.getElementById('metric-weight');
   weightEl.textContent = growth.length ? `${growth[growth.length - 1].weightG}g` : '記録なし';
 
-  renderHomeBarChart(feedings);
+  document.getElementById('home-chart-date-label').textContent = homeChartDateLabel(homeChartDate);
+  renderHomeBarChart(feedings, homeChartDate);
   renderHomeScheduleBadge();
 }
 
-function renderHomeBarChart(feedings) {
-  const now = new Date();
+function renderHomeBarChart(feedings, date) {
   const buckets = new Array(24).fill(0);
   feedings.forEach((f) => {
     const d = new Date(f.timestamp);
-    if (isSameDay(d, now)) buckets[d.getHours()] += 1;
+    if (isSameDay(d, date)) buckets[d.getHours()] += 1;
   });
   const max = Math.max(1, ...buckets);
   const container = document.getElementById('home-bar-chart');
@@ -830,6 +849,7 @@ async function handleInviteLink() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   setupNav();
+  setupHomeScreen();
   setupFeedingScreen();
   setupGrowthScreen();
   setupScheduleScreen();
