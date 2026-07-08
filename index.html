@@ -111,7 +111,11 @@
     <div class="card hidden" id="manual-entry-card">
       <p class="card-label">手入力</p>
       <label class="field-label">時刻</label>
-      <input type="time" id="manual-time-input">
+      <div class="time-select-row">
+        <select id="manual-time-hour"></select>
+        <span>:</span>
+        <select id="manual-time-minute"></select>
+      </div>
       <label class="field-label" id="manual-value-label">授乳時間（分）</label>
       <input type="number" id="manual-value-input" placeholder="10" inputmode="numeric">
       <button class="btn btn-primary" id="manual-save-btn">記録する</button>
@@ -172,7 +176,11 @@
       <label class="field-label">予定日</label>
       <input type="date" id="schedule-date-input">
       <label class="field-label">時刻（任意）</label>
-      <input type="time" id="schedule-time-input">
+      <div class="time-select-row">
+        <select id="schedule-time-hour"></select>
+        <span>:</span>
+        <select id="schedule-time-minute"></select>
+      </div>
       <button class="btn btn-primary" id="schedule-save-btn">追加する</button>
     </div>
     <button class="btn btn-ghost btn-dashed" id="schedule-add-toggle-btn">+ 予定を追加する</button>

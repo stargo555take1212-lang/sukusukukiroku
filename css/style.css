@@ -207,6 +207,15 @@ input[type="text"], input[type="number"], input[type="date"], input[type="time"]
 .field-suffix { font-size: 13px; color: var(--text-secondary); }
 .field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+.time-select-row { display: flex; align-items: center; gap: 6px; }
+.time-select-row select {
+  flex: 1; width: 100%; font-family: inherit; font-size: 14px;
+  padding: 10px 8px; border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-strong); background: var(--bg-card-muted);
+  color: var(--text-primary);
+}
+.time-select-row span { color: var(--text-secondary); font-weight: 700; }
+
 /* ---------- Record list ---------- */
 .record-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .record-item {

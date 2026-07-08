@@ -18,6 +18,41 @@ function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+// ネイティブの<input type="time">がAndroidの一部端末でボタンが見切れる不具合があるため、
+// 時/分のプルダウンで代用する
+function populateTimeSelects(hourEl, minuteEl) {
+  const blank = () => {
+    const o = document.createElement('option');
+    o.value = '';
+    o.textContent = '－';
+    return o;
+  };
+  hourEl.appendChild(blank());
+  for (let h = 0; h < 24; h++) {
+    const o = document.createElement('option');
+    o.value = pad2(h);
+    o.textContent = `${pad2(h)}時`;
+    hourEl.appendChild(o);
+  }
+  minuteEl.appendChild(blank());
+  for (let m = 0; m < 60; m++) {
+    const o = document.createElement('option');
+    o.value = pad2(m);
+    o.textContent = `${pad2(m)}分`;
+    minuteEl.appendChild(o);
+  }
+}
+
+function getTimeSelectValue(hourEl, minuteEl) {
+  if (!hourEl.value || !minuteEl.value) return '';
+  return `${hourEl.value}:${minuteEl.value}`;
+}
+
+function resetTimeSelect(hourEl, minuteEl) {
+  hourEl.value = '';
+  minuteEl.value = '';
+}
+
 function addMonths(date, months) {
   const d = new Date(date);
   d.setMonth(d.getMonth() + months);
@@ -260,6 +295,8 @@ let timerInterval = null;
 let timerStartTime = null; // Date | null
 
 function setupFeedingScreen() {
+  populateTimeSelects(document.getElementById('manual-time-hour'), document.getElementById('manual-time-minute'));
+
   document.querySelectorAll('#feeding-type-segmented .segmented-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       feedingType = btn.dataset.type;
@@ -322,7 +359,9 @@ async function saveMilkEntry() {
 }
 
 async function saveManualEntry() {
-  const timeVal = document.getElementById('manual-time-input').value;
+  const hourEl = document.getElementById('manual-time-hour');
+  const minuteEl = document.getElementById('manual-time-minute');
+  const timeVal = getTimeSelectValue(hourEl, minuteEl);
   const valueVal = parseFloat(document.getElementById('manual-value-input').value);
   if (!timeVal || !valueVal) { alert('時刻と数値を入力してください'); return; }
 
@@ -336,7 +375,7 @@ async function saveManualEntry() {
 
   try {
     await Data.addFeeding(entry);
-    document.getElementById('manual-time-input').value = '';
+    resetTimeSelect(hourEl, minuteEl);
     document.getElementById('manual-value-input').value = '';
     document.getElementById('manual-entry-card').classList.add('hidden');
     renderFeedingList();
@@ -520,19 +559,23 @@ function getUpcomingScheduleItem() {
 }
 
 function setupScheduleScreen() {
+  const timeHourEl = document.getElementById('schedule-time-hour');
+  const timeMinuteEl = document.getElementById('schedule-time-minute');
+  populateTimeSelects(timeHourEl, timeMinuteEl);
+
   document.getElementById('schedule-add-toggle-btn').addEventListener('click', () => {
     document.getElementById('schedule-add-card').classList.toggle('hidden');
   });
   document.getElementById('schedule-save-btn').addEventListener('click', async () => {
     const title = document.getElementById('schedule-title-input').value.trim();
     const date = document.getElementById('schedule-date-input').value;
-    const time = document.getElementById('schedule-time-input').value;
+    const time = getTimeSelectValue(timeHourEl, timeMinuteEl);
     if (!title || !date) { alert('予定の名前と日付を入力してください'); return; }
     try {
       await Data.addScheduleCustom({ title, date, time: time || null });
       document.getElementById('schedule-title-input').value = '';
       document.getElementById('schedule-date-input').value = '';
-      document.getElementById('schedule-time-input').value = '';
+      resetTimeSelect(timeHourEl, timeMinuteEl);
       document.getElementById('schedule-add-card').classList.add('hidden');
       renderScheduleScreen();
     } catch (err) {
