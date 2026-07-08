@@ -24,6 +24,18 @@ function shiftDate(date, days) {
   return d;
 }
 
+// 保存中であることが分かるようボタンの文言を変え、連打による二重送信も防ぐ
+function setButtonBusy(btn, busy, busyText = '保存中…') {
+  if (busy) {
+    btn.dataset.originalText = btn.textContent;
+    btn.textContent = busyText;
+    btn.disabled = true;
+  } else {
+    btn.textContent = btn.dataset.originalText || btn.textContent;
+    btn.disabled = false;
+  }
+}
+
 // ネイティブの<input type="time">がAndroidの一部端末でボタンが見切れる不具合があるため、
 // 時/分のプルダウンで代用する
 function populateTimeSelects(hourEl, minuteEl, minuteStep = 1) {
@@ -347,13 +359,16 @@ async function toggleTimer() {
     const startTime = timerStartTime;
     const durationMin = Math.max(1, Math.round((new Date() - startTime) / 60000));
     timerStartTime = null;
-    btn.textContent = '▶ 開始する';
     document.getElementById('timer-display').textContent = '00:00:00';
+    setButtonBusy(btn, true, '保存中…');
     try {
       await Data.addFeeding({ type: 'breast', timestamp: startTime.toISOString(), durationMin });
       renderFeedingList();
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
+    } finally {
+      setButtonBusy(btn, false);
+      btn.textContent = '▶ 開始する';
     }
   }
 }
@@ -370,12 +385,16 @@ async function saveMilkEntry() {
   const input = document.getElementById('milk-amount-input');
   const amount = parseInt(input.value, 10);
   if (!amount || amount <= 0) { alert('ミルクの量を入力してください'); return; }
+  const btn = document.getElementById('milk-save-btn');
+  setButtonBusy(btn, true);
   try {
     await Data.addFeeding({ type: 'milk', timestamp: new Date().toISOString(), amountMl: amount });
     input.value = '';
     renderFeedingList();
   } catch (err) {
     alert('保存に失敗しました: ' + err.message);
+  } finally {
+    setButtonBusy(btn, false);
   }
 }
 
@@ -397,6 +416,8 @@ async function saveManualEntry() {
   if (isBreast) entry.durationMin = valueVal;
   else entry.amountMl = valueVal;
 
+  const btn = document.getElementById('manual-save-btn');
+  setButtonBusy(btn, true);
   try {
     await Data.addFeeding(entry);
     resetTimeSelect(hourEl, minuteEl);
@@ -406,6 +427,8 @@ async function saveManualEntry() {
     renderFeedingList();
   } catch (err) {
     alert('保存に失敗しました: ' + err.message);
+  } finally {
+    setButtonBusy(btn, false);
   }
 }
 
@@ -460,11 +483,12 @@ function renderFeedingList() {
 
 function setupGrowthScreen() {
   document.getElementById('growth-date-input').value = todayDateStr();
-  document.getElementById('growth-save-btn').addEventListener('click', async () => {
+  document.getElementById('growth-save-btn').addEventListener('click', async (e) => {
     const date = document.getElementById('growth-date-input').value;
     const weight = parseInt(document.getElementById('growth-weight-input').value, 10);
     const height = parseFloat(document.getElementById('growth-height-input').value);
     if (!date || (!weight && !height)) { alert('日付と、体重または身長を入力してください'); return; }
+    setButtonBusy(e.target, true);
     try {
       await Data.addGrowth({ date, weightG: weight || null, heightCm: height || null });
       document.getElementById('growth-weight-input').value = '';
@@ -472,6 +496,8 @@ function setupGrowthScreen() {
       renderGrowthScreen();
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
+    } finally {
+      setButtonBusy(e.target, false);
     }
   });
 }
@@ -596,11 +622,12 @@ function setupScheduleScreen() {
   document.getElementById('schedule-add-toggle-btn').addEventListener('click', () => {
     document.getElementById('schedule-add-card').classList.toggle('hidden');
   });
-  document.getElementById('schedule-save-btn').addEventListener('click', async () => {
+  document.getElementById('schedule-save-btn').addEventListener('click', async (e) => {
     const title = document.getElementById('schedule-title-input').value.trim();
     const date = document.getElementById('schedule-date-input').value;
     const time = getTimeSelectValue(timeHourEl, timeMinuteEl);
     if (!title || !date) { alert('予定の名前と日付を入力してください'); return; }
+    setButtonBusy(e.target, true);
     try {
       await Data.addScheduleCustom({ title, date, time: time || null });
       document.getElementById('schedule-title-input').value = '';
@@ -610,6 +637,8 @@ function setupScheduleScreen() {
       renderScheduleScreen();
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
+    } finally {
+      setButtonBusy(e.target, false);
     }
   });
 }
