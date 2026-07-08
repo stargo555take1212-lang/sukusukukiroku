@@ -465,13 +465,15 @@ function renderFeedingList() {
       </div>
       <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
     `;
-    item.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+    item.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
       if (confirm('この記録を削除しますか？')) {
+        setButtonBusy(e.target, true, '…');
         try {
           await Data.deleteFeeding(f.id);
           renderFeedingList();
         } catch (err) {
           alert('削除に失敗しました: ' + err.message);
+          setButtonBusy(e.target, false);
         }
       }
     });
@@ -571,13 +573,15 @@ function renderGrowthList(list) {
       </div>
       <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
     `;
-    item.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+    item.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
       if (confirm('この記録を削除しますか？')) {
+        setButtonBusy(e.target, true, '…');
         try {
           await Data.deleteGrowth(g.id);
           renderGrowthScreen();
         } catch (err) {
           alert('削除に失敗しました: ' + err.message);
+          setButtonBusy(e.target, false);
         }
       }
     });
@@ -669,13 +673,15 @@ function renderScheduleScreen() {
           alert('更新に失敗しました: ' + err.message);
         }
       });
-      el.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+      el.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
         if (confirm('この予定を削除しますか？')) {
+          setButtonBusy(e.target, true, '…');
           try {
             await Data.deleteScheduleCustom(item.id);
             renderScheduleScreen();
           } catch (err) {
             alert('削除に失敗しました: ' + err.message);
+            setButtonBusy(e.target, false);
           }
         }
       });
