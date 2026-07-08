@@ -717,7 +717,7 @@ function renderGrowthList(list) {
     item.innerHTML = `
       <div class="record-icon" style="background:var(--c-teal-50)">📏</div>
       <div class="record-item-body">
-        <p class="record-item-time">${g.date}</p>
+        <p class="record-item-time">${toDateOnly(g.date)}</p>
         <p class="record-item-sub">${parts.join(' / ')}</p>
       </div>
       <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
@@ -744,11 +744,11 @@ function renderGrowthList(list) {
 // ---------------- 予定画面 ----------------
 
 function scheduleDateTime(item) {
-  return new Date(`${item.date}T${item.time || '00:00'}`);
+  return new Date(`${toDateOnly(item.date)}T${item.time || '00:00'}`);
 }
 
 function scheduleDateLabel(item) {
-  const d = new Date(`${item.date}T00:00:00`);
+  const d = new Date(`${toDateOnly(item.date)}T00:00:00`);
   const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
   return item.time ? `${dateStr} ${item.time}` : dateStr;
 }
