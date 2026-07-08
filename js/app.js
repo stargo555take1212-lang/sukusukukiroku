@@ -594,50 +594,96 @@ function setupGrowthScreen() {
 
 function renderGrowthScreen() {
   const list = Data.getGrowth();
+  const child = Data.getChild();
 
   const withWeight = list.filter((g) => g.weightG != null);
   const withHeight = list.filter((g) => g.heightCm != null);
+  document.getElementById('growth-weight-current').textContent = withWeight.length ? `体重 ${withWeight[withWeight.length - 1].weightG}g` : '体重 記録なし';
+  document.getElementById('growth-height-current').textContent = withHeight.length ? `身長 ${withHeight[withHeight.length - 1].heightCm}cm` : '身長 記録なし';
 
-  document.getElementById('growth-weight-current').textContent = withWeight.length ? `${withWeight[withWeight.length - 1].weightG}g` : '記録なし';
-  document.getElementById('growth-height-current').textContent = withHeight.length ? `${withHeight[withHeight.length - 1].heightCm}cm` : '記録なし';
-
-  drawLineChart('growth-weight-svg', withWeight.map((g) => g.weightG), 'var(--c-green-600)');
-  drawLineChart('growth-height-svg', withHeight.map((g) => g.heightCm), 'var(--c-blue-600)');
-
-  renderAxisLabels('growth-weight-axis', withWeight);
-  renderAxisLabels('growth-height-axis', withHeight);
+  const canShowCurve = !!(child.birthdate && child.sex);
+  document.getElementById('growth-chart-setup-card').classList.toggle('hidden', canShowCurve);
+  document.getElementById('growth-chart-card').classList.toggle('hidden', !canShowCurve);
+  if (canShowCurve) drawGrowthCurveChart(child, list);
 
   renderGrowthList(list);
 }
 
-function renderAxisLabels(elId, list) {
-  const el = document.getElementById(elId);
-  if (list.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = `<span>${list[0].date}</span><span>${list[list.length - 1].date}</span>`;
+// 生年月日からの月齢(小数)を計算する。1か月を30.4368日として近似する
+function ageInMonths(birthdateStr, dateStr) {
+  const birth = new Date(`${birthdateStr}T00:00:00`);
+  const date = new Date(`${dateStr}T00:00:00`);
+  return (date - birth) / (1000 * 60 * 60 * 24) / 30.4368;
 }
 
-function drawLineChart(svgId, values, color) {
-  const svg = document.getElementById(svgId);
-  if (values.length < 2) {
-    svg.innerHTML = values.length === 1
-      ? `<circle cx="150" cy="40" r="4" fill="${color}"/>`
-      : '';
-    return;
-  }
-  const w = 300, h = 80, pad = 10;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
+function buildBandPath(curveRows, monthToX, valueToY) {
+  const top = curveRows.map((row, i) => `${i === 0 ? 'M' : 'L'}${monthToX(i)},${valueToY(row[2])}`).join(' ');
+  const bottom = [...curveRows].reverse().map((row, i) => `L${monthToX(curveRows.length - 1 - i)},${valueToY(row[0])}`).join(' ');
+  return `${top} ${bottom} Z`;
+}
 
-  const points = values.map((v, i) => {
-    const x = pad + (i / (values.length - 1)) * (w - pad * 2);
-    const y = h - pad - ((v - min) / range) * (h - pad * 2);
-    return [x, y];
-  });
+function buildCurveLinePath(curveRows, monthToX, valueToY, percentileIdx) {
+  return curveRows.map((row, i) => `${i === 0 ? 'M' : 'L'}${monthToX(i)},${valueToY(row[percentileIdx])}`).join(' ');
+}
 
-  const polyline = points.map((p) => p.join(',')).join(' ');
-  const circles = points.map((p) => `<circle cx="${p[0]}" cy="${p[1]}" r="3" fill="${color}"/>`).join('');
-  svg.innerHTML = `<polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="2.5"/>${circles}`;
+// 乳児身体発育曲線(0〜12か月)に体重・身長の記録を重ねて描画する
+function drawGrowthCurveChart(child, list) {
+  const svg = document.getElementById('growth-chart-svg');
+  const curves = GROWTH_CURVES[child.sex];
+  if (!curves) { svg.innerHTML = ''; return; }
+
+  const w = 320, h = 200;
+  const x0 = 30, x1 = w - 30;
+  const y0 = 10, y1 = h - 24;
+  const plotW = x1 - x0, plotH = y1 - y0;
+
+  const monthToX = (m) => x0 + (m / 12) * plotW;
+  const weightToY = (kg) => y1 - (kg / 12) * plotH;
+  const heightToY = (cm) => y1 - ((cm - 40) / 40) * plotH;
+
+  const weightBand = buildBandPath(curves.weight, monthToX, weightToY);
+  const heightBand = buildBandPath(curves.height, monthToX, heightToY);
+  const weightMedian = buildCurveLinePath(curves.weight, monthToX, weightToY, 1);
+  const heightMedian = buildCurveLinePath(curves.height, monthToX, heightToY, 1);
+
+  const weightTicks = [0, 3, 6, 9, 12].map((kg) => `
+    <line x1="${x0}" y1="${weightToY(kg)}" x2="${x1}" y2="${weightToY(kg)}" stroke="var(--border)" stroke-width="0.5"/>
+    <text x="${x0 - 4}" y="${weightToY(kg) + 3}" font-size="7" fill="var(--c-green-600)" text-anchor="end">${kg}</text>
+  `).join('');
+  const heightTicks = [40, 50, 60, 70, 80].map((cm) => `
+    <text x="${x1 + 4}" y="${heightToY(cm) + 3}" font-size="7" fill="var(--c-blue-600)" text-anchor="start">${cm}</text>
+  `).join('');
+  const monthTicks = [0, 3, 6, 9, 12].map((m) => `
+    <text x="${monthToX(m)}" y="${y1 + 14}" font-size="7" fill="var(--text-muted)" text-anchor="middle">${m}か月</text>
+  `).join('');
+
+  const actualWeight = list.filter((g) => g.weightG != null)
+    .map((g) => ({ age: ageInMonths(child.birthdate, g.date), v: g.weightG / 1000 }))
+    .filter((p) => p.age >= 0 && p.age <= 12)
+    .sort((a, b) => a.age - b.age);
+  const actualHeight = list.filter((g) => g.heightCm != null)
+    .map((g) => ({ age: ageInMonths(child.birthdate, g.date), v: g.heightCm }))
+    .filter((p) => p.age >= 0 && p.age <= 12)
+    .sort((a, b) => a.age - b.age);
+
+  const weightPath = actualWeight.map((p, i) => `${i === 0 ? 'M' : 'L'}${monthToX(p.age)},${weightToY(p.v)}`).join(' ');
+  const weightDots = actualWeight.map((p) => `<circle cx="${monthToX(p.age)}" cy="${weightToY(p.v)}" r="3" fill="var(--c-green-600)"/>`).join('');
+  const heightPath = actualHeight.map((p, i) => `${i === 0 ? 'M' : 'L'}${monthToX(p.age)},${heightToY(p.v)}`).join(' ');
+  const heightDots = actualHeight.map((p) => `<circle cx="${monthToX(p.age)}" cy="${heightToY(p.v)}" r="3" fill="var(--c-blue-600)"/>`).join('');
+
+  svg.innerHTML = `
+    <path d="${heightBand}" fill="var(--c-blue-600)" opacity="0.12"/>
+    <path d="${weightBand}" fill="var(--c-green-600)" opacity="0.12"/>
+    ${weightTicks}
+    <path d="${heightMedian}" fill="none" stroke="var(--c-blue-600)" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+    <path d="${weightMedian}" fill="none" stroke="var(--c-green-600)" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+    ${heightTicks}
+    ${monthTicks}
+    <path d="${heightPath}" fill="none" stroke="var(--c-blue-600)" stroke-width="2.5"/>
+    ${heightDots}
+    <path d="${weightPath}" fill="none" stroke="var(--c-green-600)" stroke-width="2.5"/>
+    ${weightDots}
+  `;
 }
 
 function renderGrowthList(list) {
@@ -788,12 +834,21 @@ function renderScheduleScreen() {
 
 // ---------------- 設定画面 ----------------
 
+let settingsSex = null;
+
 function setupSettingsScreen() {
+  document.querySelectorAll('#settings-sex-segmented .segmented-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      settingsSex = btn.dataset.sex;
+      document.querySelectorAll('#settings-sex-segmented .segmented-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    });
+  });
+
   document.getElementById('settings-save-btn').addEventListener('click', async () => {
     const name = document.getElementById('settings-name-input').value.trim();
     const birthdate = document.getElementById('settings-birthdate-input').value;
     try {
-      await Data.saveChild({ name, birthdate });
+      await Data.saveChild({ name, birthdate, sex: settingsSex });
       alert('保存しました');
       renderHome();
     } catch (err) {
@@ -854,6 +909,11 @@ function renderSettingsScreen() {
   document.getElementById('settings-birthdate-input').value = child.birthdate || '';
   document.getElementById('gas-url-input').value = Data.getGasUrl();
   document.getElementById('gas-url-status').textContent = Data.isConfigured() ? '接続済み' : '未接続';
+
+  settingsSex = child.sex || null;
+  document.querySelectorAll('#settings-sex-segmented .segmented-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.sex === settingsSex);
+  });
 }
 
 // ---------------- 招待リンク ----------------

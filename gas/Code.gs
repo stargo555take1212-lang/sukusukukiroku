@@ -12,7 +12,7 @@
 // textColumns: 日付/ID等、Sheetsが自動で日付型・数値型に変換してしまうと
 // 困る列だけをプレーンテキスト形式に固定する（done等の真偽値・数値列は対象外）
 const SHEET_DEFS = {
-  CHILD: { name: 'Child', headers: ['name', 'birthdate', 'photo'], textColumns: ['birthdate'] },
+  CHILD: { name: 'Child', headers: ['name', 'birthdate', 'photo', 'sex'], textColumns: ['birthdate'] },
   FEEDINGS: { name: 'Feedings', headers: ['id', 'type', 'timestamp', 'durationMin', 'amountMl'], textColumns: ['id', 'timestamp'] },
   GROWTH: { name: 'Growth', headers: ['id', 'date', 'weightG', 'heightCm'], textColumns: ['id', 'date'] },
   SCHEDULE_CUSTOM: { name: 'ScheduleCustom', headers: ['id', 'title', 'date', 'time', 'done'], textColumns: ['id', 'date', 'time'] },

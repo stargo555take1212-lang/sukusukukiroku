@@ -164,18 +164,23 @@
       <button class="btn btn-primary" id="growth-save-btn" style="background:var(--c-green-600)">記録する</button>
     </div>
 
-    <div class="card">
-      <p class="card-label">体重の推移</p>
-      <p class="growth-current-value" id="growth-weight-current">--</p>
-      <svg viewBox="0 0 300 80" class="growth-svg" id="growth-weight-svg"></svg>
-      <div class="bar-chart-axis" id="growth-weight-axis"></div>
+    <div class="card hidden" id="growth-chart-setup-card">
+      <p class="card-label">成長曲線</p>
+      <p class="empty-state">設定画面で生年月日と性別を登録すると、乳児身体発育曲線と重ねて表示できます。</p>
     </div>
 
-    <div class="card">
-      <p class="card-label">身長の推移</p>
-      <p class="growth-current-value" id="growth-height-current">--</p>
-      <svg viewBox="0 0 300 80" class="growth-svg" id="growth-height-svg"></svg>
-      <div class="bar-chart-axis" id="growth-height-axis"></div>
+    <div class="card hidden" id="growth-chart-card">
+      <p class="card-label" id="growth-chart-label">成長曲線（乳児身体発育曲線）</p>
+      <div class="growth-current-row">
+        <p class="growth-current-value growth-current-weight" id="growth-weight-current">--</p>
+        <p class="growth-current-value growth-current-height" id="growth-height-current">--</p>
+      </div>
+      <svg viewBox="0 0 320 200" class="growth-svg" id="growth-chart-svg"></svg>
+      <div class="growth-chart-legend">
+        <span><i class="legend-dot" style="background:var(--c-green-600)"></i>体重(kg)</span>
+        <span><i class="legend-dot" style="background:var(--c-blue-600)"></i>身長(cm)</span>
+      </div>
+      <p class="hint-text">ℹ️ 表示中の帯は3〜97パーセンタイルの目安です。正確な統計値ではないため、参考程度にご覧ください。</p>
     </div>
 
     <p class="section-label">記録一覧</p>
@@ -215,6 +220,12 @@
       <label class="field-label">生年月日</label>
       <input type="date" id="settings-birthdate-input">
       <p class="hint-text">ℹ️ 月齢・日齢は自動計算されます</p>
+      <label class="field-label">性別</label>
+      <div class="segmented" id="settings-sex-segmented">
+        <button class="segmented-btn" data-sex="boy">男の子</button>
+        <button class="segmented-btn" data-sex="girl">女の子</button>
+      </div>
+      <p class="hint-text">ℹ️ 成長記録のグラフで使う発育曲線の切り替えに使います</p>
     </div>
 
     <button class="btn btn-primary btn-large" id="settings-save-btn">保存する</button>
@@ -247,6 +258,7 @@
 </div><!-- /.app-frame -->
 
 <script src="js/data.js"></script>
+<script src="js/growth-curves.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
