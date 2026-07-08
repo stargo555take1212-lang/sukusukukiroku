@@ -260,7 +260,7 @@ input[type="text"], input[type="number"], input[type="date"], input[type="time"]
 .growth-current-row { display: flex; gap: 20px; }
 .growth-current-weight { color: var(--c-green-600); }
 .growth-current-height { color: var(--c-blue-600); }
-.growth-svg { width: 100%; height: 170px; }
+.growth-svg { width: 100%; height: 220px; }
 .growth-chart-legend { display: flex; gap: 16px; margin-top: 4px; font-size: 11px; color: var(--text-secondary); }
 .growth-chart-legend span { display: flex; align-items: center; gap: 5px; }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }

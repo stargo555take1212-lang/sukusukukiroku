@@ -627,57 +627,66 @@ function buildCurveLinePath(curveRows, monthToX, valueToY, percentileIdx) {
 }
 
 // 乳児身体発育曲線(0〜12か月)に体重・身長の記録を重ねて描画する
+// 母子手帳の発育曲線にならい、身長を上段・体重を下段に分けて描く
 function drawGrowthCurveChart(child, list) {
   const svg = document.getElementById('growth-chart-svg');
   const curves = GROWTH_CURVES[child.sex];
   if (!curves) { svg.innerHTML = ''; return; }
 
-  const w = 320, h = 200;
-  const x0 = 30, x1 = w - 30;
-  const y0 = 10, y1 = h - 24;
-  const plotW = x1 - x0, plotH = y1 - y0;
+  const w = 320;
+  const x0 = 34, x1 = w - 10;
+  const plotW = x1 - x0;
+  const heightTop = 16, heightBottom = 108;
+  const weightTop = 128, weightBottom = 220;
+  const monthAxisY = 236;
 
   const monthToX = (m) => x0 + (m / 12) * plotW;
-  const weightToY = (kg) => y1 - (kg / 12) * plotH;
-  const heightToY = (cm) => y1 - ((cm - 40) / 40) * plotH;
+  const heightToY = (cm) => heightBottom - ((cm - 40) / 40) * (heightBottom - heightTop);
+  const weightToY = (kg) => weightBottom - (kg / 12) * (weightBottom - weightTop);
 
-  const weightBand = buildBandPath(curves.weight, monthToX, weightToY);
   const heightBand = buildBandPath(curves.height, monthToX, heightToY);
-  const weightMedian = buildCurveLinePath(curves.weight, monthToX, weightToY, 1);
+  const weightBand = buildBandPath(curves.weight, monthToX, weightToY);
   const heightMedian = buildCurveLinePath(curves.height, monthToX, heightToY, 1);
+  const weightMedian = buildCurveLinePath(curves.weight, monthToX, weightToY, 1);
 
+  const heightTicks = [40, 50, 60, 70, 80].map((cm) => `
+    <line x1="${x0}" y1="${heightToY(cm)}" x2="${x1}" y2="${heightToY(cm)}" stroke="var(--border)" stroke-width="0.5"/>
+    <text x="${x0 - 4}" y="${heightToY(cm) + 3}" font-size="7" fill="var(--c-blue-600)" text-anchor="end">${cm}</text>
+  `).join('');
   const weightTicks = [0, 3, 6, 9, 12].map((kg) => `
     <line x1="${x0}" y1="${weightToY(kg)}" x2="${x1}" y2="${weightToY(kg)}" stroke="var(--border)" stroke-width="0.5"/>
     <text x="${x0 - 4}" y="${weightToY(kg) + 3}" font-size="7" fill="var(--c-green-600)" text-anchor="end">${kg}</text>
   `).join('');
-  const heightTicks = [40, 50, 60, 70, 80].map((cm) => `
-    <text x="${x1 + 4}" y="${heightToY(cm) + 3}" font-size="7" fill="var(--c-blue-600)" text-anchor="start">${cm}</text>
-  `).join('');
   const monthTicks = [0, 3, 6, 9, 12].map((m) => `
-    <text x="${monthToX(m)}" y="${y1 + 14}" font-size="7" fill="var(--text-muted)" text-anchor="middle">${m}か月</text>
+    <text x="${monthToX(m)}" y="${monthAxisY}" font-size="7" fill="var(--text-muted)" text-anchor="middle">${m}か月</text>
   `).join('');
+  const sectionLabels = `
+    <text x="${x0}" y="${heightTop - 5}" font-size="8" font-weight="700" fill="var(--c-blue-600)">身長(cm)</text>
+    <text x="${x0}" y="${weightTop - 5}" font-size="8" font-weight="700" fill="var(--c-green-600)">体重(kg)</text>
+  `;
 
-  const actualWeight = list.filter((g) => g.weightG != null)
-    .map((g) => ({ age: ageInMonths(child.birthdate, g.date), v: g.weightG / 1000 }))
-    .filter((p) => p.age >= 0 && p.age <= 12)
-    .sort((a, b) => a.age - b.age);
   const actualHeight = list.filter((g) => g.heightCm != null)
     .map((g) => ({ age: ageInMonths(child.birthdate, g.date), v: g.heightCm }))
     .filter((p) => p.age >= 0 && p.age <= 12)
     .sort((a, b) => a.age - b.age);
+  const actualWeight = list.filter((g) => g.weightG != null)
+    .map((g) => ({ age: ageInMonths(child.birthdate, g.date), v: g.weightG / 1000 }))
+    .filter((p) => p.age >= 0 && p.age <= 12)
+    .sort((a, b) => a.age - b.age);
 
-  const weightPath = actualWeight.map((p, i) => `${i === 0 ? 'M' : 'L'}${monthToX(p.age)},${weightToY(p.v)}`).join(' ');
-  const weightDots = actualWeight.map((p) => `<circle cx="${monthToX(p.age)}" cy="${weightToY(p.v)}" r="3" fill="var(--c-green-600)"/>`).join('');
   const heightPath = actualHeight.map((p, i) => `${i === 0 ? 'M' : 'L'}${monthToX(p.age)},${heightToY(p.v)}`).join(' ');
   const heightDots = actualHeight.map((p) => `<circle cx="${monthToX(p.age)}" cy="${heightToY(p.v)}" r="3" fill="var(--c-blue-600)"/>`).join('');
+  const weightPath = actualWeight.map((p, i) => `${i === 0 ? 'M' : 'L'}${monthToX(p.age)},${weightToY(p.v)}`).join(' ');
+  const weightDots = actualWeight.map((p) => `<circle cx="${monthToX(p.age)}" cy="${weightToY(p.v)}" r="3" fill="var(--c-green-600)"/>`).join('');
 
   svg.innerHTML = `
-    <path d="${heightBand}" fill="var(--c-blue-600)" opacity="0.12"/>
-    <path d="${weightBand}" fill="var(--c-green-600)" opacity="0.12"/>
+    <path d="${heightBand}" fill="var(--c-blue-600)" opacity="0.15"/>
+    <path d="${weightBand}" fill="var(--c-green-600)" opacity="0.15"/>
+    ${heightTicks}
     ${weightTicks}
+    ${sectionLabels}
     <path d="${heightMedian}" fill="none" stroke="var(--c-blue-600)" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
     <path d="${weightMedian}" fill="none" stroke="var(--c-green-600)" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
-    ${heightTicks}
     ${monthTicks}
     <path d="${heightPath}" fill="none" stroke="var(--c-blue-600)" stroke-width="2.5"/>
     ${heightDots}
