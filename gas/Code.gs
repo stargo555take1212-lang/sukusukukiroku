@@ -23,28 +23,26 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  const body = JSON.parse(e.postData.contents);
-
-  // 読み取り(getAll)はデータを変更しないためロック不要。
-  // 画面遷移のたびに裏で走る仕組みなので、ロックを取ると書き込み
-  // リクエストがその分待たされて不安定になっていた。
-  if (body.action === 'getAll') {
-    try {
-      return jsonOutput({ ok: true, data: getAll() });
-    } catch (err) {
-      return jsonOutput({ ok: false, error: err.message });
-    }
-  }
-
-  const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
-    const data = handleAction(body.action, body.payload);
-    return jsonOutput({ ok: true, data });
+    const body = JSON.parse(e.postData.contents);
+
+    // 読み取り(getAll)はデータを変更しないためロック不要。
+    // 画面遷移のたびに裏で走る仕組みなので、ロックを取ると書き込み
+    // リクエストがその分待たされて不安定になっていた。
+    if (body.action === 'getAll') {
+      return jsonOutput({ ok: true, data: getAll() });
+    }
+
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(10000);
+      const data = handleAction(body.action, body.payload);
+      return jsonOutput({ ok: true, data });
+    } finally {
+      lock.releaseLock();
+    }
   } catch (err) {
     return jsonOutput({ ok: false, error: err.message });
-  } finally {
-    lock.releaseLock();
   }
 }
 
