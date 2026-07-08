@@ -14,9 +14,29 @@
 
 const STORAGE_KEYS = {
   GAS_URL: 'sukusuku_gas_url',
+  CACHE: 'sukusuku_cache',
 };
 
-let cache = {
+// 前回取得した内容をローカルに保存しておき、次回起動時は届くまでの間
+// 空の初期状態を表示せず、直前の内容をそのまま表示できるようにする
+function loadPersistedCache() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CACHE);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function persistCache() {
+  try {
+    localStorage.setItem(STORAGE_KEYS.CACHE, JSON.stringify(cache));
+  } catch (e) {
+    // 保存容量オーバー等は無視(次回起動時の即時表示が失われるだけで実害はない)
+  }
+}
+
+let cache = loadPersistedCache() || {
   child: { name: '', birthdate: '' },
   feedings: [],
   growth: [],
@@ -27,6 +47,7 @@ function sortCache() {
   cache.feedings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   cache.growth.sort((a, b) => new Date(a.date) - new Date(b.date));
   cache.scheduleCustom.sort((a, b) => new Date(`${a.date}T${a.time || '00:00'}`) - new Date(`${b.date}T${b.time || '00:00'}`));
+  persistCache();
 }
 
 async function callGas(action, payload) {
@@ -80,6 +101,7 @@ const Data = {
   },
   async saveChild(child) {
     cache.child = await callGas('saveChild', child);
+    persistCache();
     return cache.child;
   },
 
@@ -103,6 +125,7 @@ const Data = {
   async deleteFeeding(id) {
     await callGas('deleteFeeding', { id });
     cache.feedings = cache.feedings.filter((f) => f.id !== id);
+    persistCache();
   },
 
   // ---------------- 成長記録 ----------------
@@ -118,6 +141,7 @@ const Data = {
   async deleteGrowth(id) {
     await callGas('deleteGrowth', { id });
     cache.growth = cache.growth.filter((g) => g.id !== id);
+    persistCache();
   },
 
   // ---------------- 予定(カスタム) ----------------
@@ -133,11 +157,13 @@ const Data = {
   async deleteScheduleCustom(id) {
     await callGas('deleteScheduleCustom', { id });
     cache.scheduleCustom = cache.scheduleCustom.filter((s) => s.id !== id);
+    persistCache();
   },
   async toggleScheduleCustom(id) {
     const record = await callGas('toggleScheduleCustom', { id });
     const idx = cache.scheduleCustom.findIndex((s) => s.id === id);
     if (idx !== -1) cache.scheduleCustom[idx] = record;
+    persistCache();
     return record;
   },
 };
