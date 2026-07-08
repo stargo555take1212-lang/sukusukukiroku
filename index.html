@@ -90,7 +90,7 @@
     <header class="screen-header"><p class="screen-title">授乳記録</p><button class="refresh-btn" data-refresh aria-label="更新">⟳</button></header>
 
     <div class="segmented" id="feeding-type-segmented">
-      <button class="segmented-btn active" data-type="breast">母乳</button>
+      <button class="segmented-btn active" data-type="breast">母乳・搾乳</button>
       <button class="segmented-btn" data-type="milk">ミルク</button>
     </div>
 
@@ -115,6 +115,10 @@
 
     <div class="card hidden" id="manual-entry-card">
       <p class="card-label">手入力</p>
+      <div class="segmented" id="manual-subtype-segmented">
+        <button class="segmented-btn active" data-subtype="breast">母乳</button>
+        <button class="segmented-btn" data-subtype="pump">搾乳</button>
+      </div>
       <label class="field-label">時刻</label>
       <div class="time-select-row">
         <select id="manual-time-hour"></select>

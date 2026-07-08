@@ -393,9 +393,20 @@ function setupAvatarUpload() {
 // ---------------- 授乳記録画面 ----------------
 
 let feedingType = 'breast';
+let manualSubtype = 'breast'; // 'breast' | 'pump' (feedingTypeが'breast'の時だけ使う、手入力の種類)
 let timerInterval = null;
 let timerStartTime = null; // Date | null
 let feedingViewDate = new Date();
+
+// 手入力カードのラベル・入力欄の見た目を、上部のタイプと手入力サブタイプに合わせて更新する
+function updateManualEntryFields() {
+  const isMilk = feedingType === 'milk';
+  const isPump = feedingType === 'breast' && manualSubtype === 'pump';
+  document.getElementById('manual-value-label').textContent = isMilk ? 'ミルクの量（ml）' : isPump ? '搾乳量（ml）' : '授乳時間（分）';
+  document.getElementById('manual-duration-select').classList.toggle('hidden', isMilk || isPump);
+  document.getElementById('manual-value-input').classList.toggle('hidden', !(isMilk || isPump));
+  document.getElementById('manual-subtype-segmented').classList.toggle('hidden', isMilk);
+}
 
 function setupFeedingScreen() {
   populateTimeSelects(document.getElementById('manual-time-hour'), document.getElementById('manual-time-minute'), 5);
@@ -403,12 +414,20 @@ function setupFeedingScreen() {
   document.querySelectorAll('#feeding-type-segmented .segmented-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       feedingType = btn.dataset.type;
+      manualSubtype = 'breast';
       document.querySelectorAll('#feeding-type-segmented .segmented-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('#manual-subtype-segmented .segmented-btn').forEach((b) => b.classList.toggle('active', b.dataset.subtype === 'breast'));
       document.getElementById('breast-timer-card').classList.toggle('hidden', feedingType !== 'breast');
       document.getElementById('milk-input-card').classList.toggle('hidden', feedingType !== 'milk');
-      document.getElementById('manual-value-label').textContent = feedingType === 'breast' ? '授乳時間（分）' : 'ミルクの量（ml）';
-      document.getElementById('manual-duration-select').classList.toggle('hidden', feedingType !== 'breast');
-      document.getElementById('manual-value-input').classList.toggle('hidden', feedingType !== 'milk');
+      updateManualEntryFields();
+    });
+  });
+
+  document.querySelectorAll('#manual-subtype-segmented .segmented-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      manualSubtype = btn.dataset.subtype;
+      document.querySelectorAll('#manual-subtype-segmented .segmented-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      updateManualEntryFields();
     });
   });
 
@@ -487,16 +506,19 @@ async function saveManualEntry() {
   const timeVal = getTimeSelectValue(hourEl, minuteEl);
   const durationSelect = document.getElementById('manual-duration-select');
   const valueInput = document.getElementById('manual-value-input');
-  const isBreast = feedingType === 'breast';
-  const valueVal = parseFloat(isBreast ? durationSelect.value : valueInput.value);
+
+  const isMilk = feedingType === 'milk';
+  const isPump = feedingType === 'breast' && manualSubtype === 'pump';
+  const entryType = isMilk ? 'milk' : isPump ? 'pump' : 'breast';
+  const valueVal = parseFloat((isMilk || isPump) ? valueInput.value : durationSelect.value);
   if (!timeVal || !valueVal) { alert('時刻と数値を入力してください'); return; }
 
   const [h, m] = timeVal.split(':').map(Number);
   const ts = new Date();
   ts.setHours(h, m, 0, 0);
 
-  const entry = { type: feedingType, timestamp: ts.toISOString() };
-  if (isBreast) entry.durationMin = valueVal;
+  const entry = { type: entryType, timestamp: ts.toISOString() };
+  if (entryType === 'breast') entry.durationMin = valueVal;
   else entry.amountMl = valueVal;
 
   const btn = document.getElementById('manual-save-btn');
@@ -540,9 +562,10 @@ function renderFeedingList() {
     const item = document.createElement('div');
     item.className = 'record-item';
     const isBreast = f.type === 'breast';
-    const sub = isBreast ? `母乳・${f.durationMin}分` : `ミルク・${f.amountMl}ml`;
+    const isPump = f.type === 'pump';
+    const sub = isBreast ? `母乳・${f.durationMin}分` : isPump ? `搾乳・${f.amountMl}ml` : `ミルク・${f.amountMl}ml`;
     item.innerHTML = `
-      <div class="record-icon" style="background:${isBreast ? 'var(--c-pink-50)' : 'var(--c-purple-50)'}">🍼</div>
+      <div class="record-icon" style="background:${isBreast ? 'var(--c-pink-50)' : isPump ? 'var(--c-teal-50)' : 'var(--c-purple-50)'}">🍼</div>
       <div class="record-item-body">
         <p class="record-item-time">${formatTimeHM(new Date(f.timestamp))}</p>
         <p class="record-item-sub">${sub}</p>
