@@ -314,6 +314,8 @@ function setupFeedingScreen() {
       document.getElementById('breast-timer-card').classList.toggle('hidden', feedingType !== 'breast');
       document.getElementById('milk-input-card').classList.toggle('hidden', feedingType !== 'milk');
       document.getElementById('manual-value-label').textContent = feedingType === 'breast' ? '授乳時間（分）' : 'ミルクの量（ml）';
+      document.getElementById('manual-duration-select').classList.toggle('hidden', feedingType !== 'breast');
+      document.getElementById('manual-value-input').classList.toggle('hidden', feedingType !== 'milk');
     });
   });
 
@@ -381,7 +383,10 @@ async function saveManualEntry() {
   const hourEl = document.getElementById('manual-time-hour');
   const minuteEl = document.getElementById('manual-time-minute');
   const timeVal = getTimeSelectValue(hourEl, minuteEl);
-  const valueVal = parseFloat(document.getElementById('manual-value-input').value);
+  const durationSelect = document.getElementById('manual-duration-select');
+  const valueInput = document.getElementById('manual-value-input');
+  const isBreast = feedingType === 'breast';
+  const valueVal = parseFloat(isBreast ? durationSelect.value : valueInput.value);
   if (!timeVal || !valueVal) { alert('時刻と数値を入力してください'); return; }
 
   const [h, m] = timeVal.split(':').map(Number);
@@ -389,13 +394,14 @@ async function saveManualEntry() {
   ts.setHours(h, m, 0, 0);
 
   const entry = { type: feedingType, timestamp: ts.toISOString() };
-  if (feedingType === 'breast') entry.durationMin = valueVal;
+  if (isBreast) entry.durationMin = valueVal;
   else entry.amountMl = valueVal;
 
   try {
     await Data.addFeeding(entry);
     resetTimeSelect(hourEl, minuteEl);
-    document.getElementById('manual-value-input').value = '';
+    durationSelect.value = '';
+    valueInput.value = '';
     document.getElementById('manual-entry-card').classList.add('hidden');
     renderFeedingList();
   } catch (err) {

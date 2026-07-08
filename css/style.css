@@ -196,7 +196,7 @@ html, body {
 
 /* ---------- Fields ---------- */
 .field-label { display: block; font-size: 11px; color: var(--text-muted); margin: 8px 0 4px; }
-input[type="text"], input[type="number"], input[type="date"], input[type="time"] {
+input[type="text"], input[type="number"], input[type="date"], input[type="time"], select {
   width: 100%; font-family: inherit; font-size: 14px;
   padding: 10px 12px; border-radius: var(--radius-sm);
   border: 0.5px solid var(--border-strong); background: var(--bg-card-muted);

@@ -117,7 +117,16 @@
         <select id="manual-time-minute"></select>
       </div>
       <label class="field-label" id="manual-value-label">授乳時間（分）</label>
-      <input type="number" id="manual-value-input" placeholder="10" inputmode="numeric">
+      <select id="manual-duration-select">
+        <option value="">－</option>
+        <option value="5">5分</option>
+        <option value="10">10分</option>
+        <option value="15">15分</option>
+        <option value="20">20分</option>
+        <option value="25">25分</option>
+        <option value="30">30分</option>
+      </select>
+      <input type="number" id="manual-value-input" placeholder="120" inputmode="numeric" class="hidden">
       <button class="btn btn-primary" id="manual-save-btn">記録する</button>
     </div>
 
