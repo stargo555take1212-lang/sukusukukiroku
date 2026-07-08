@@ -18,9 +18,15 @@ function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+function shiftDate(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
 // ネイティブの<input type="time">がAndroidの一部端末でボタンが見切れる不具合があるため、
 // 時/分のプルダウンで代用する
-function populateTimeSelects(hourEl, minuteEl) {
+function populateTimeSelects(hourEl, minuteEl, minuteStep = 1) {
   const blank = () => {
     const o = document.createElement('option');
     o.value = '';
@@ -35,7 +41,7 @@ function populateTimeSelects(hourEl, minuteEl) {
     hourEl.appendChild(o);
   }
   minuteEl.appendChild(blank());
-  for (let m = 0; m < 60; m++) {
+  for (let m = 0; m < 60; m += minuteStep) {
     const o = document.createElement('option');
     o.value = pad2(m);
     o.textContent = `${pad2(m)}分`;
@@ -100,6 +106,9 @@ function navigateTo(screenName) {
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.nav === screenName);
   });
+
+  // タブへの新規遷移時は表示日を今日にリセットする(裏での再描画時はリセットしない)
+  if (screenName === 'feeding') feedingViewDate = new Date();
 
   // まずキャッシュ済みのデータで即座に描画し、最新データは裏で取得して届いたら差し替える
   renderScreen(screenName);
@@ -293,9 +302,10 @@ function setupAvatarUpload() {
 let feedingType = 'breast';
 let timerInterval = null;
 let timerStartTime = null; // Date | null
+let feedingViewDate = new Date();
 
 function setupFeedingScreen() {
-  populateTimeSelects(document.getElementById('manual-time-hour'), document.getElementById('manual-time-minute'));
+  populateTimeSelects(document.getElementById('manual-time-hour'), document.getElementById('manual-time-minute'), 5);
 
   document.querySelectorAll('#feeding-type-segmented .segmented-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -313,6 +323,15 @@ function setupFeedingScreen() {
     document.getElementById('manual-entry-card').classList.toggle('hidden');
   });
   document.getElementById('manual-save-btn').addEventListener('click', saveManualEntry);
+
+  document.getElementById('feeding-date-prev').addEventListener('click', () => {
+    feedingViewDate = shiftDate(feedingViewDate, -1);
+    renderFeedingScreen();
+  });
+  document.getElementById('feeding-date-next').addEventListener('click', () => {
+    feedingViewDate = shiftDate(feedingViewDate, 1);
+    renderFeedingScreen();
+  });
 }
 
 async function toggleTimer() {
@@ -384,17 +403,22 @@ async function saveManualEntry() {
   }
 }
 
+function feedingDateLabel(date) {
+  if (isSameDay(date, new Date())) return '今日';
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
 function renderFeedingScreen() {
+  document.getElementById('feeding-list-label').textContent = `${feedingDateLabel(feedingViewDate)}の記録`;
   renderFeedingList();
 }
 
 function renderFeedingList() {
   const container = document.getElementById('feeding-list');
-  const now = new Date();
-  const todays = Data.getFeedings().filter((f) => isSameDay(new Date(f.timestamp), now));
+  const todays = Data.getFeedings().filter((f) => isSameDay(new Date(f.timestamp), feedingViewDate));
 
   if (todays.length === 0) {
-    container.innerHTML = '<p class="empty-state">今日の記録はまだありません。</p>';
+    container.innerHTML = `<p class="empty-state">${feedingDateLabel(feedingViewDate)}の記録はまだありません。</p>`;
     return;
   }
 
