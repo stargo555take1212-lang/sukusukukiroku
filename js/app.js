@@ -198,6 +198,7 @@ function setupHomeScreen() {
     renderHome();
   });
   document.getElementById('home-chart-date-next').addEventListener('click', () => {
+    if (isSameDay(homeChartDate, new Date())) return; // 今日より先(未来)には進めない
     homeChartDate = shiftDate(homeChartDate, 1);
     renderHome();
   });
@@ -244,6 +245,7 @@ function renderHome() {
   weightEl.textContent = growth.length ? `${growth[growth.length - 1].weightG}g` : '記録なし';
 
   document.getElementById('home-chart-date-label').textContent = homeChartDateLabel(homeChartDate);
+  document.getElementById('home-chart-date-next').classList.toggle('disabled', isSameDay(homeChartDate, now));
   renderHomeBarChart(feedings, homeChartDate);
   renderHomeScheduleBadge();
 }

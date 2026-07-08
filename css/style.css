@@ -219,6 +219,7 @@ input[type="text"], input[type="number"], input[type="date"], input[type="time"]
 /* ---------- Record list ---------- */
 .date-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .date-nav .icon-btn { font-size: 14px; padding: 4px 10px; }
+.date-nav .icon-btn.disabled { opacity: 0.3; }
 .date-nav-label { margin: 0; flex: 1; text-align: center; }
 
 .record-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
