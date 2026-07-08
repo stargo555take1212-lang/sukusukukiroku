@@ -127,15 +127,25 @@ function renderScreen(screenName) {
   if (screenName === 'settings') renderSettingsScreen();
 }
 
+// 画面に更新ボタンがあればそれを返す(タブ移動時の裏更新もこのボタンを回して知らせる)
+function getScreenRefreshButton(screenName) {
+  const section = document.querySelector(`.screen[data-screen="${screenName}"]`);
+  return section ? section.querySelector('[data-refresh]') : null;
+}
+
 // 書き込みが失敗した際、通信が不安定なだけで実際はGAS側で成功している
 // ことがあるため、最新状態を取り直して画面を実態に合わせ直す
 async function resyncAfterError() {
   if (!Data.isConfigured()) return;
+  const refreshBtn = currentScreen ? getScreenRefreshButton(currentScreen) : null;
+  if (refreshBtn) refreshBtn.classList.add('spinning');
   try {
     await Data.refresh();
     if (currentScreen) renderScreen(currentScreen);
   } catch (err) {
     console.error('再同期に失敗しました', err);
+  } finally {
+    if (refreshBtn) refreshBtn.classList.remove('spinning');
   }
 }
 
@@ -156,7 +166,8 @@ function navigateTo(screenName) {
   renderScreen(screenName);
 
   if (screenName !== 'settings' && Data.isConfigured()) {
-    showLoading(true);
+    const refreshBtn = getScreenRefreshButton(screenName);
+    if (refreshBtn) refreshBtn.classList.add('spinning');
     Data.refresh()
       .then(() => {
         if (currentScreen === screenName) renderScreen(screenName);
@@ -165,7 +176,7 @@ function navigateTo(screenName) {
         console.error('データの取得に失敗しました', err);
       })
       .finally(() => {
-        showLoading(false);
+        if (refreshBtn) refreshBtn.classList.remove('spinning');
       });
   }
 }
