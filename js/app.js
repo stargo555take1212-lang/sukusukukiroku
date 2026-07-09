@@ -505,6 +505,7 @@ async function saveMilkEntry() {
 }
 
 async function saveManualEntry() {
+  const dateVal = document.getElementById('manual-date-input').value;
   const hourEl = document.getElementById('manual-time-hour');
   const minuteEl = document.getElementById('manual-time-minute');
   const timeVal = getTimeSelectValue(hourEl, minuteEl);
@@ -515,10 +516,10 @@ async function saveManualEntry() {
   const isPump = feedingType === 'breast' && manualSubtype === 'pump';
   const entryType = isMilk ? 'milk' : isPump ? 'pump' : 'breast';
   const valueVal = parseFloat((isMilk || isPump) ? valueInput.value : durationSelect.value);
-  if (!timeVal || !valueVal) { alert('時刻と数値を入力してください'); return; }
+  if (!dateVal || !timeVal || !valueVal) { alert('日付・時刻と数値を入力してください'); return; }
 
   const [h, m] = timeVal.split(':').map(Number);
-  const ts = new Date();
+  const ts = new Date(`${dateVal}T00:00:00`);
   ts.setHours(h, m, 0, 0);
 
   const entry = { type: entryType, timestamp: ts.toISOString() };
@@ -549,6 +550,8 @@ function feedingDateLabel(date) {
 
 function renderFeedingScreen() {
   document.getElementById('feeding-list-label').textContent = `${feedingDateLabel(feedingViewDate)}の記録`;
+  // 手入力の日付は、今見ている日に合わせておく(日をまたいでも正しい日を選べるように)
+  document.getElementById('manual-date-input').value = todayDateStr(feedingViewDate);
   renderFeedingList();
 }
 
