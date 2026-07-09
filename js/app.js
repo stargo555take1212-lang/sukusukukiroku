@@ -313,14 +313,16 @@ function renderHomeBarChart(feedings, date) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('home-start-feeding-btn').addEventListener('click', () => {
+  const goToScreenOrSettings = (screenName) => {
     if (!Data.isConfigured()) {
       alert('まず設定画面でGAS連携のURLを登録してください');
       navigateTo('settings');
       return;
     }
-    navigateTo('feeding');
-  });
+    navigateTo(screenName);
+  };
+  document.getElementById('home-start-feeding-btn').addEventListener('click', () => goToScreenOrSettings('feeding'));
+  document.getElementById('home-start-poop-btn').addEventListener('click', () => goToScreenOrSettings('poop'));
 });
 
 // ---------------- 写真アップロード ----------------

@@ -179,6 +179,7 @@ html, body {
   padding: 12px; cursor: pointer; width: 100%;
 }
 .btn-primary { background: var(--c-pink-600); color: white; }
+.btn-secondary { background: var(--c-amber-50); color: var(--c-amber-900); margin-top: 10px; }
 .btn-large { padding: 15px; font-size: 15px; border-radius: var(--radius-md); }
 .btn-ghost {
   background: none; border: 0.5px solid var(--border-strong);
