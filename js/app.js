@@ -264,11 +264,9 @@ function renderHome() {
     elapsedEl.textContent = h > 0 ? `${h}時間${m}分` : `${m}分`;
   }
 
-  // 今日の回数・合計量
+  // 今日の回数
   const todaysFeedings = feedings.filter((f) => isSameDay(new Date(f.timestamp), now));
   document.getElementById('metric-count').textContent = `${todaysFeedings.length}回`;
-  const totalMl = todaysFeedings.filter((f) => f.type === 'milk').reduce((sum, f) => sum + (f.amountMl || 0), 0);
-  document.getElementById('metric-volume').textContent = `${totalMl}ml`;
 
   // 最新体重
   const growth = Data.getGrowth();
