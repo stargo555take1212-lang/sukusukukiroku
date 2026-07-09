@@ -43,14 +43,6 @@
       <button class="icon-btn" data-nav="settings" aria-label="設定を開く">⚙️</button>
     </header>
 
-    <div id="home-schedule-badge" class="schedule-badge hidden">
-      <span class="schedule-badge-icon">⏰</span>
-      <div>
-        <p class="schedule-badge-title" id="schedule-badge-title"></p>
-        <p class="schedule-badge-date" id="schedule-badge-date"></p>
-      </div>
-    </div>
-
     <div class="metric-grid">
       <div class="metric-card metric-pink">
         <p class="metric-label">最後の授乳から</p>
@@ -192,26 +184,33 @@
     <div id="growth-list" class="record-list"></div>
   </section>
 
-  <!-- ================= 予定 ================= -->
-  <section class="screen hidden" id="screen-schedule" data-screen="schedule">
-    <header class="screen-header"><p class="screen-title">予定</p><button class="refresh-btn" data-refresh aria-label="更新">⟳</button></header>
+  <!-- ================= うんち記録 ================= -->
+  <section class="screen hidden" id="screen-poop" data-screen="poop">
+    <header class="screen-header"><p class="screen-title">うんち記録</p><button class="refresh-btn" data-refresh aria-label="更新">⟳</button></header>
 
-    <div id="schedule-custom-list" class="record-list"></div>
-
-    <div class="card hidden" id="schedule-add-card">
-      <label class="field-label">予定の名前</label>
-      <input type="text" id="schedule-title-input" placeholder="予防接種（任意）">
-      <label class="field-label">予定日</label>
-      <input type="date" id="schedule-date-input">
-      <label class="field-label">時刻（任意）</label>
+    <div class="card">
+      <p class="card-label">記録する</p>
+      <label class="field-label">時刻</label>
       <div class="time-select-row">
-        <select id="schedule-time-hour"></select>
+        <select id="poop-time-hour"></select>
         <span>:</span>
-        <select id="schedule-time-minute"></select>
+        <select id="poop-time-minute"></select>
       </div>
-      <button class="btn btn-primary" id="schedule-save-btn">追加する</button>
+      <label class="field-label">量</label>
+      <div class="segmented" id="poop-size-segmented">
+        <button class="segmented-btn" data-size="small">小</button>
+        <button class="segmented-btn active" data-size="medium">中</button>
+        <button class="segmented-btn" data-size="large">大</button>
+      </div>
+      <button class="btn btn-primary" id="poop-save-btn" style="margin-top:10px">記録する</button>
     </div>
-    <button class="btn btn-ghost btn-dashed" id="schedule-add-toggle-btn">+ 予定を追加する</button>
+
+    <div class="date-nav">
+      <button class="icon-btn" id="poop-date-prev" aria-label="前の日">◀</button>
+      <p class="section-label date-nav-label" id="poop-list-label">今日の記録</p>
+      <button class="icon-btn" id="poop-date-next" aria-label="次の日">▶</button>
+    </div>
+    <div id="poop-list" class="record-list"></div>
   </section>
 
   <!-- ================= 設定 ================= -->
@@ -256,7 +255,7 @@
   <button class="nav-btn active" data-nav="home"><span class="nav-icon">🏠</span><span>ホーム</span></button>
   <button class="nav-btn" data-nav="feeding"><span class="nav-icon">🍼</span><span>授乳記録</span></button>
   <button class="nav-btn" data-nav="growth"><span class="nav-icon">📈</span><span>成長記録</span></button>
-  <button class="nav-btn" data-nav="schedule"><span class="nav-icon">📅</span><span>予定</span></button>
+  <button class="nav-btn" data-nav="poop"><span class="nav-icon">💩</span><span>うんち</span></button>
   <button class="nav-btn" data-nav="settings"><span class="nav-icon">⚙️</span><span>設定</span></button>
 </nav>
 

@@ -15,7 +15,7 @@ const SHEET_DEFS = {
   CHILD: { name: 'Child', headers: ['name', 'birthdate', 'photo', 'sex'], textColumns: ['birthdate'] },
   FEEDINGS: { name: 'Feedings', headers: ['id', 'type', 'timestamp', 'durationMin', 'amountMl'], textColumns: ['id', 'timestamp'] },
   GROWTH: { name: 'Growth', headers: ['id', 'date', 'weightG', 'heightCm'], textColumns: ['id', 'date'] },
-  SCHEDULE_CUSTOM: { name: 'ScheduleCustom', headers: ['id', 'title', 'date', 'time', 'done'], textColumns: ['id', 'date', 'time'] },
+  POOP: { name: 'Poop', headers: ['id', 'timestamp', 'size'], textColumns: ['id', 'timestamp'] },
 };
 
 function doGet(e) {
@@ -58,9 +58,8 @@ function handleAction(action, payload) {
     case 'deleteFeeding': return deleteFeeding(payload.id);
     case 'addGrowth': return addGrowth(payload);
     case 'deleteGrowth': return deleteGrowth(payload.id);
-    case 'addScheduleCustom': return addScheduleCustom(payload);
-    case 'deleteScheduleCustom': return deleteScheduleCustom(payload.id);
-    case 'toggleScheduleCustom': return toggleScheduleCustom(payload.id);
+    case 'addPoop': return addPoop(payload);
+    case 'deletePoop': return deletePoop(payload.id);
     default: throw new Error('未対応のaction: ' + action);
   }
 }
@@ -186,35 +185,23 @@ function deleteGrowth(id) {
   return { id };
 }
 
-// ---------------- 予定(カスタム) ----------------
+// ---------------- うんち記録 ----------------
 
-function addScheduleCustom(entry) {
-  const def = SHEET_DEFS.SCHEDULE_CUSTOM;
+function addPoop(entry) {
+  const def = SHEET_DEFS.POOP;
   const sheet = getSheet(def);
-  const record = Object.assign({ id: Utilities.getUuid(), done: false }, entry);
+  const record = Object.assign({ id: Utilities.getUuid() }, entry);
   const row = def.headers.map((h) => (record[h] == null ? '' : record[h]));
   sheet.appendRow(row);
   return record;
 }
 
-function deleteScheduleCustom(id) {
-  const def = SHEET_DEFS.SCHEDULE_CUSTOM;
+function deletePoop(id) {
+  const def = SHEET_DEFS.POOP;
   const sheet = getSheet(def);
   const rowNum = findRowById(sheet, def.headers, id);
   if (rowNum !== -1) sheet.deleteRow(rowNum);
   return { id };
-}
-
-function toggleScheduleCustom(id) {
-  const def = SHEET_DEFS.SCHEDULE_CUSTOM;
-  const sheet = getSheet(def);
-  const rowNum = findRowById(sheet, def.headers, id);
-  if (rowNum === -1) throw new Error('指定の予定が見つかりません');
-  const current = rowToObject(def.headers, sheet.getRange(rowNum, 1, 1, def.headers.length).getValues()[0]);
-  current.done = !current.done;
-  const row = def.headers.map((h) => (current[h] == null ? '' : current[h]));
-  sheet.getRange(rowNum, 1, 1, def.headers.length).setValues([row]);
-  return current;
 }
 
 // ---------------- 全件取得 ----------------
@@ -224,7 +211,7 @@ function getAll() {
     child: getChildObj(),
     feedings: sheetToObjects(getSheet(SHEET_DEFS.FEEDINGS)).map(stripRow),
     growth: sheetToObjects(getSheet(SHEET_DEFS.GROWTH)).map(stripRow),
-    scheduleCustom: sheetToObjects(getSheet(SHEET_DEFS.SCHEDULE_CUSTOM)).map(stripRow),
+    poop: sheetToObjects(getSheet(SHEET_DEFS.POOP)).map(stripRow),
   };
 }
 

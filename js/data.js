@@ -40,13 +40,13 @@ let cache = loadPersistedCache() || {
   child: { name: '', birthdate: '' },
   feedings: [],
   growth: [],
-  scheduleCustom: [],
+  poop: [],
 };
 
 function sortCache() {
   cache.feedings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   cache.growth.sort((a, b) => new Date(a.date) - new Date(b.date));
-  cache.scheduleCustom.sort((a, b) => new Date(`${a.date}T${a.time || '00:00'}`) - new Date(`${b.date}T${b.time || '00:00'}`));
+  cache.poop.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   persistCache();
 }
 
@@ -86,7 +86,7 @@ const Data = {
         cache.child = data.child || { name: '', birthdate: '' };
         cache.feedings = data.feedings || [];
         cache.growth = data.growth || [];
-        cache.scheduleCustom = data.scheduleCustom || [];
+        cache.poop = data.poop || [];
         sortCache();
       } finally {
         this._inflightRefresh = null;
@@ -144,26 +144,19 @@ const Data = {
     persistCache();
   },
 
-  // ---------------- 予定(カスタム) ----------------
-  getScheduleCustom() {
-    return cache.scheduleCustom;
+  // ---------------- うんち記録 ----------------
+  getPoop() {
+    return cache.poop;
   },
-  async addScheduleCustom(entry) {
-    const record = await callGas('addScheduleCustom', entry);
-    cache.scheduleCustom.push(record);
+  async addPoop(entry) {
+    const record = await callGas('addPoop', entry);
+    cache.poop.push(record);
     sortCache();
     return record;
   },
-  async deleteScheduleCustom(id) {
-    await callGas('deleteScheduleCustom', { id });
-    cache.scheduleCustom = cache.scheduleCustom.filter((s) => s.id !== id);
+  async deletePoop(id) {
+    await callGas('deletePoop', { id });
+    cache.poop = cache.poop.filter((p) => p.id !== id);
     persistCache();
-  },
-  async toggleScheduleCustom(id) {
-    const record = await callGas('toggleScheduleCustom', { id });
-    const idx = cache.scheduleCustom.findIndex((s) => s.id === id);
-    if (idx !== -1) cache.scheduleCustom[idx] = record;
-    persistCache();
-    return record;
   },
 };

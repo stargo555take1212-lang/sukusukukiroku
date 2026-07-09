@@ -122,18 +122,6 @@ html, body {
 }
 .refresh-btn.spinning { animation: spin 0.8s linear infinite; }
 
-/* ---------- Schedule badge ---------- */
-.schedule-badge {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--c-amber-50);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  margin-bottom: 14px;
-}
-.schedule-badge-icon { font-size: 20px; }
-.schedule-badge-title { font-size: 13px; font-weight: 700; margin: 0; color: var(--c-amber-900); }
-.schedule-badge-date { font-size: 11px; margin: 0; color: var(--c-amber-800); }
-
 /* ---------- Metric grid ---------- */
 .metric-grid {
   display: grid;

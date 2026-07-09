@@ -123,7 +123,7 @@ function renderScreen(screenName) {
   if (screenName === 'home') renderHome();
   if (screenName === 'feeding') renderFeedingScreen();
   if (screenName === 'growth') renderGrowthScreen();
-  if (screenName === 'schedule') renderScheduleScreen();
+  if (screenName === 'poop') renderPoopScreen();
   if (screenName === 'settings') renderSettingsScreen();
 }
 
@@ -161,6 +161,10 @@ function navigateTo(screenName) {
   // タブへの新規遷移時は表示日を今日にリセットする(裏での再描画時はリセットしない)
   if (screenName === 'feeding') feedingViewDate = new Date();
   if (screenName === 'home') homeChartDate = new Date();
+  if (screenName === 'poop') {
+    poopViewDate = new Date();
+    setPoopTimeToNow(document.getElementById('poop-time-hour'), document.getElementById('poop-time-minute'));
+  }
 
   // まずキャッシュ済みのデータで即座に描画し、最新データは裏で取得して届いたら差し替える
   renderScreen(screenName);
@@ -276,7 +280,6 @@ function renderHome() {
   document.getElementById('home-chart-date-label').textContent = homeChartDateLabel(homeChartDate);
   document.getElementById('home-chart-date-next').classList.toggle('disabled', isSameDay(homeChartDate, now));
   renderHomeBarChart(feedings, homeChartDate);
-  renderHomeScheduleBadge();
 }
 
 // 母乳は分数そのまま、ミルク・搾乳は40mlあたり5分として分数換算する
@@ -307,18 +310,6 @@ function renderHomeBarChart(feedings, date) {
     bar.style.height = `${Math.max(4, (minutes / niceMax) * 100)}%`;
     container.appendChild(bar);
   });
-}
-
-function renderHomeScheduleBadge() {
-  const upcoming = getUpcomingScheduleItem();
-  const badge = document.getElementById('home-schedule-badge');
-  if (!upcoming) {
-    badge.classList.add('hidden');
-    return;
-  }
-  badge.classList.remove('hidden');
-  document.getElementById('schedule-badge-title').textContent = upcoming.label;
-  document.getElementById('schedule-badge-date').textContent = upcoming.dateLabel;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -775,56 +766,51 @@ function renderGrowthList(list) {
   });
 }
 
-// ---------------- 予定画面 ----------------
+// ---------------- うんち記録画面 ----------------
 
-function scheduleDateTime(item) {
-  return new Date(`${toDateOnly(item.date)}T${item.time || '00:00'}`);
+let poopViewDate = new Date();
+let poopSize = 'medium';
+
+function poopSizeLabel(size) {
+  return size === 'large' ? '大' : size === 'small' ? '小' : '中';
 }
 
-function scheduleDateLabel(item) {
-  const d = new Date(`${toDateOnly(item.date)}T00:00:00`);
-  const dateStr = `${d.getMonth() + 1}/${d.getDate()}`;
-  return item.time ? `${dateStr} ${item.time}` : dateStr;
+function poopDateLabel(date) {
+  if (isSameDay(date, new Date())) return '今日';
+  return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-function getUpcomingScheduleItem() {
+// 時刻セレクトを現在時刻(5分刻みに丸め)に合わせる
+function setPoopTimeToNow(hourEl, minuteEl) {
   const now = new Date();
-  const upcoming = Data.getScheduleCustom()
-    .filter((c) => !c.done)
-    .map((c) => ({ label: c.title, dateObj: scheduleDateTime(c) }))
-    .filter((i) => {
-      const diffDays = Math.floor((i.dateObj - now) / (1000 * 60 * 60 * 24));
-      return diffDays <= 7; // 過ぎたものも含め、1週間以内に近いものだけバッジ表示
-    })
-    .sort((a, b) => a.dateObj - b.dateObj);
-  if (upcoming.length === 0) return null;
-  const target = upcoming[0];
-  const diffDays = Math.floor((target.dateObj - now) / (1000 * 60 * 60 * 24));
-  const dateLabel = `予定日: ${target.dateObj.getMonth() + 1}/${target.dateObj.getDate()}` + (diffDays >= 0 ? `（あと${diffDays}日）` : '（期日を過ぎています）');
-  return { label: target.label, dateLabel };
+  hourEl.value = pad2(now.getHours());
+  minuteEl.value = pad2(Math.round(now.getMinutes() / 5) * 5 % 60);
 }
 
-function setupScheduleScreen() {
-  const timeHourEl = document.getElementById('schedule-time-hour');
-  const timeMinuteEl = document.getElementById('schedule-time-minute');
-  populateTimeSelects(timeHourEl, timeMinuteEl);
+function setupPoopScreen() {
+  const hourEl = document.getElementById('poop-time-hour');
+  const minuteEl = document.getElementById('poop-time-minute');
+  populateTimeSelects(hourEl, minuteEl, 5);
+  setPoopTimeToNow(hourEl, minuteEl);
 
-  document.getElementById('schedule-add-toggle-btn').addEventListener('click', () => {
-    document.getElementById('schedule-add-card').classList.toggle('hidden');
+  document.querySelectorAll('#poop-size-segmented .segmented-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      poopSize = btn.dataset.size;
+      document.querySelectorAll('#poop-size-segmented .segmented-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    });
   });
-  document.getElementById('schedule-save-btn').addEventListener('click', async (e) => {
-    const title = document.getElementById('schedule-title-input').value.trim();
-    const date = document.getElementById('schedule-date-input').value;
-    const time = getTimeSelectValue(timeHourEl, timeMinuteEl);
-    if (!title || !date) { alert('予定の名前と日付を入力してください'); return; }
+
+  document.getElementById('poop-save-btn').addEventListener('click', async (e) => {
+    const timeVal = getTimeSelectValue(hourEl, minuteEl);
+    if (!timeVal) { alert('時刻を選択してください'); return; }
+    const [h, m] = timeVal.split(':').map(Number);
+    const ts = new Date();
+    ts.setHours(h, m, 0, 0);
+
     setButtonBusy(e.target, true);
     try {
-      await Data.addScheduleCustom({ title, date, time: time || null });
-      document.getElementById('schedule-title-input').value = '';
-      document.getElementById('schedule-date-input').value = '';
-      resetTimeSelect(timeHourEl, timeMinuteEl);
-      document.getElementById('schedule-add-card').classList.add('hidden');
-      renderScheduleScreen();
+      await Data.addPoop({ timestamp: ts.toISOString(), size: poopSize });
+      renderPoopScreen();
     } catch (err) {
       alert('保存に失敗しました: ' + err.message);
       await resyncAfterError();
@@ -832,53 +818,60 @@ function setupScheduleScreen() {
       setButtonBusy(e.target, false);
     }
   });
+
+  document.getElementById('poop-date-prev').addEventListener('click', () => {
+    poopViewDate = shiftDate(poopViewDate, -1);
+    renderPoopScreen();
+  });
+  document.getElementById('poop-date-next').addEventListener('click', () => {
+    poopViewDate = shiftDate(poopViewDate, 1);
+    renderPoopScreen();
+  });
 }
 
-function renderScheduleScreen() {
-  const customContainer = document.getElementById('schedule-custom-list');
-  const customList = Data.getScheduleCustom();
-  if (customList.length === 0) {
-    customContainer.innerHTML = '<p class="empty-state">追加した予定はありません。</p>';
-  } else {
-    customContainer.innerHTML = '';
-    customList.forEach((item) => {
-      const el = document.createElement('div');
-      el.className = 'record-item';
-      el.innerHTML = `
-        <button class="record-action" data-action="toggle" aria-label="完了を切り替え" style="font-size:20px">${item.done ? '✅' : '⚪'}</button>
-        <div class="record-item-body">
-          <p class="record-item-time" style="${item.done ? 'text-decoration:line-through;color:var(--text-muted)' : ''}">${item.title}</p>
-          <p class="record-item-sub">予定日: ${scheduleDateLabel(item)}</p>
-        </div>
-        <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
-      `;
-      el.querySelector('[data-action="toggle"]').addEventListener('click', async () => {
+function renderPoopScreen() {
+  document.getElementById('poop-list-label').textContent = `${poopDateLabel(poopViewDate)}の記録`;
+  renderPoopList();
+}
+
+function renderPoopList() {
+  const container = document.getElementById('poop-list');
+  const todays = Data.getPoop().filter((p) => isSameDay(new Date(p.timestamp), poopViewDate));
+
+  if (todays.length === 0) {
+    container.innerHTML = `<p class="empty-state">${poopDateLabel(poopViewDate)}の記録はまだありません。</p>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  todays.forEach((p) => {
+    const item = document.createElement('div');
+    item.className = 'record-item';
+    item.innerHTML = `
+      <div class="record-icon" style="background:var(--c-amber-50)">💩</div>
+      <div class="record-item-body">
+        <p class="record-item-time">${formatTimeHM(new Date(p.timestamp))}</p>
+        <p class="record-item-sub">${poopSizeLabel(p.size)}</p>
+      </div>
+      <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
+    `;
+    item.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
+      if (confirm('この記録を削除しますか？')) {
+        setButtonBusy(e.target, true, '…');
+        markRowRemoving(item);
         try {
-          await Data.toggleScheduleCustom(item.id);
-          renderScheduleScreen();
+          await Data.deletePoop(p.id);
+          renderPoopList();
         } catch (err) {
-          alert('更新に失敗しました: ' + err.message);
+          alert('削除に失敗しました: ' + err.message);
+          setButtonBusy(e.target, false);
+          unmarkRowRemoving(item);
           await resyncAfterError();
         }
-      });
-      el.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
-        if (confirm('この予定を削除しますか？')) {
-          setButtonBusy(e.target, true, '…');
-          markRowRemoving(el);
-          try {
-            await Data.deleteScheduleCustom(item.id);
-            renderScheduleScreen();
-          } catch (err) {
-            alert('削除に失敗しました: ' + err.message);
-            setButtonBusy(e.target, false);
-            unmarkRowRemoving(el);
-            await resyncAfterError();
-          }
-        }
-      });
-      customContainer.appendChild(el);
+      }
     });
-  }
+    container.appendChild(item);
+  });
 }
 
 // ---------------- 設定画面 ----------------
@@ -995,7 +988,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupHomeScreen();
   setupFeedingScreen();
   setupGrowthScreen();
-  setupScheduleScreen();
+  setupPoopScreen();
   setupSettingsScreen();
   setupAvatarUpload();
   await handleInviteLink();
