@@ -281,19 +281,32 @@ function renderHome() {
   renderHomeScheduleBadge();
 }
 
+// 母乳は分数そのまま、ミルク・搾乳は40mlあたり5分として分数換算する
+function feedingMinutesEquivalent(f) {
+  if (f.type === 'breast') return f.durationMin || 0;
+  return (f.amountMl || 0) * 5 / 40;
+}
+
 function renderHomeBarChart(feedings, date) {
   const buckets = new Array(24).fill(0);
   feedings.forEach((f) => {
     const d = new Date(f.timestamp);
-    if (isSameDay(d, date)) buckets[d.getHours()] += 1;
+    if (isSameDay(d, date)) buckets[d.getHours()] += feedingMinutesEquivalent(f);
   });
-  const max = Math.max(1, ...buckets);
+  const maxMinutes = Math.max(...buckets, 0);
+  const niceMax = Math.max(15, Math.ceil(maxMinutes / 15) * 15);
+
+  const yAxis = document.getElementById('home-bar-chart-yaxis');
+  const yTicks = [];
+  for (let m = niceMax; m >= 0; m -= 15) yTicks.push(m);
+  yAxis.innerHTML = yTicks.map((m) => `<span>${m}分</span>`).join('');
+
   const container = document.getElementById('home-bar-chart');
   container.innerHTML = '';
-  buckets.forEach((count) => {
+  buckets.forEach((minutes) => {
     const bar = document.createElement('div');
     bar.className = 'bar';
-    bar.style.height = `${Math.max(4, (count / max) * 100)}%`;
+    bar.style.height = `${Math.max(4, (minutes / niceMax) * 100)}%`;
     container.appendChild(bar);
   });
 }

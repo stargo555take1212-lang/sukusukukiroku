@@ -166,6 +166,13 @@ html, body {
 .card-label-pink { color: var(--c-pink-800); }
 
 /* ---------- Bar chart (feeding pattern) ---------- */
+.bar-chart-row { display: flex; gap: 6px; }
+.bar-chart-yaxis {
+  display: flex; flex-direction: column; justify-content: space-between;
+  height: 70px; font-size: 9px; color: var(--text-muted); text-align: right;
+}
+.bar-chart-yaxis span { line-height: 1; white-space: nowrap; }
+.bar-chart-col { flex: 1; min-width: 0; }
 .bar-chart {
   display: flex; align-items: flex-end; gap: 3px; height: 70px;
 }
