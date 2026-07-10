@@ -448,6 +448,7 @@ function setupFeedingScreen() {
     renderFeedingScreen();
   });
   document.getElementById('feeding-date-next').addEventListener('click', () => {
+    if (isSameDay(feedingViewDate, new Date())) return; // 今日より先(未来)には進めない
     feedingViewDate = shiftDate(feedingViewDate, 1);
     renderFeedingScreen();
   });
@@ -551,6 +552,7 @@ function feedingDateLabel(date) {
 
 function renderFeedingScreen() {
   document.getElementById('feeding-list-label').textContent = `${feedingDateLabel(feedingViewDate)}の記録`;
+  document.getElementById('feeding-date-next').classList.toggle('disabled', isSameDay(feedingViewDate, new Date()));
   // 手入力の日付は、今見ている日に合わせておく(日をまたいでも正しい日を選べるように)
   document.getElementById('manual-date-input').value = todayDateStr(feedingViewDate);
   renderFeedingList();
