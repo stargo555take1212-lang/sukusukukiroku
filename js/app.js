@@ -262,7 +262,8 @@ function renderHome() {
     elapsedEl.textContent = '記録なし';
   } else {
     const last = new Date(feedings[0].timestamp);
-    const diffMin = Math.floor((now - last) / 60000);
+    // 手入力等で最新の記録が現在時刻より後になっていても、マイナス表示にはしない
+    const diffMin = Math.max(0, Math.floor((now - last) / 60000));
     const h = Math.floor(diffMin / 60);
     const m = diffMin % 60;
     elapsedEl.textContent = h > 0 ? `${h}時間${m}分` : `${m}分`;
