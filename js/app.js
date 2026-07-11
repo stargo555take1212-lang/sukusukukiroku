@@ -311,6 +311,10 @@ function renderHomeBarChart(feedings, date) {
     bar.style.height = `${Math.max(4, (minutes / niceMax) * 100)}%`;
     container.appendChild(bar);
   });
+
+  // 棒と同じ24分割のグリッドで軸ラベルを作ることで、棒の位置とズレないようにする
+  const hourAxis = document.getElementById('home-bar-chart-axis');
+  hourAxis.innerHTML = buckets.map((_, h) => `<span>${h % 3 === 0 ? `${h}時` : ''}</span>`).join('');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
