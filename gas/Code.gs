@@ -54,7 +54,6 @@ function handleAction(action, payload) {
   switch (action) {
     case 'saveChild': return saveChild(payload);
     case 'addFeeding': return addFeeding(payload);
-    case 'updateFeeding': return updateFeeding(payload.id, payload.updates);
     case 'deleteFeeding': return deleteFeeding(payload.id);
     case 'addGrowth': return addGrowth(payload);
     case 'deleteGrowth': return deleteGrowth(payload.id);
@@ -74,7 +73,8 @@ function getSheet(def) {
     sheet.appendRow(def.headers);
     (def.textColumns || []).forEach((col) => {
       const colIdx = def.headers.indexOf(col) + 1;
-      sheet.getRange(1, colIdx, 1000, 1).setNumberFormat('@');
+      // 1000行分だけだと将来行が増えたときに書式が外れるため、余裕を持って広めに固定する
+      sheet.getRange(1, colIdx, 20000, 1).setNumberFormat('@');
     });
   }
   return sheet;
@@ -83,7 +83,8 @@ function getSheet(def) {
 function normalizeCell(v) {
   if (v === '') return null;
   if (Object.prototype.toString.call(v) === '[object Date]') {
-    return Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    // toISOString()は常に正しいUTC表記を返すため、タイムゾーンの取り違えが起きない
+    return v.toISOString();
   }
   return v;
 }
@@ -144,18 +145,6 @@ function addFeeding(entry) {
   const row = def.headers.map((h) => (record[h] == null ? '' : record[h]));
   sheet.appendRow(row);
   return record;
-}
-
-function updateFeeding(id, updates) {
-  const def = SHEET_DEFS.FEEDINGS;
-  const sheet = getSheet(def);
-  const rowNum = findRowById(sheet, def.headers, id);
-  if (rowNum === -1) throw new Error('指定の授乳記録が見つかりません');
-  const current = rowToObject(def.headers, sheet.getRange(rowNum, 1, 1, def.headers.length).getValues()[0]);
-  const merged = Object.assign({}, current, updates);
-  const row = def.headers.map((h) => (merged[h] == null ? '' : merged[h]));
-  sheet.getRange(rowNum, 1, 1, def.headers.length).setValues([row]);
-  return merged;
 }
 
 function deleteFeeding(id) {

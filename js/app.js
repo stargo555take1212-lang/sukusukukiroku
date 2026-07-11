@@ -274,9 +274,9 @@ function renderHome() {
   document.getElementById('metric-count').textContent = `${todaysFeedings.length}回`;
 
   // 最新体重
-  const growth = Data.getGrowth();
+  const withWeight = Data.getGrowth().filter((g) => g.weightG != null);
   const weightEl = document.getElementById('metric-weight');
-  weightEl.textContent = growth.length ? `${growth[growth.length - 1].weightG}g` : '記録なし';
+  weightEl.textContent = withWeight.length ? `${withWeight[withWeight.length - 1].weightG}g` : '記録なし';
 
   document.getElementById('home-chart-date-label').textContent = homeChartDateLabel(homeChartDate);
   document.getElementById('home-chart-date-next').classList.toggle('disabled', isSameDay(homeChartDate, now));
@@ -853,9 +853,10 @@ function poopDateLabel(date) {
 
 // 時刻セレクトを現在時刻(5分刻みに丸め)に合わせる
 function setPoopTimeToNow(hourEl, minuteEl) {
-  const now = new Date();
-  hourEl.value = pad2(now.getHours());
-  minuteEl.value = pad2(Math.round(now.getMinutes() / 5) * 5 % 60);
+  const fiveMin = 5 * 60000;
+  const rounded = new Date(Math.round(Date.now() / fiveMin) * fiveMin);
+  hourEl.value = pad2(rounded.getHours());
+  minuteEl.value = pad2(rounded.getMinutes());
 }
 
 function setupPoopScreen() {

@@ -59,7 +59,14 @@ async function callGas(action, payload) {
     body: JSON.stringify({ action, payload }),
   });
   if (!res.ok) throw new Error(`通信エラー(${res.status})`);
-  const json = await res.json();
+  let json;
+  try {
+    json = await res.json();
+  } catch (e) {
+    // GASのデプロイが「アクセスできるユーザー: 全員」になっていないと
+    // ログイン画面のHTMLが返ってきてJSONとして解析できない
+    throw new Error('GASからの応答を解析できませんでした。デプロイのアクセス設定(全員)を確認してください。');
+  }
   if (!json.ok) throw new Error(json.error || '不明なエラー');
   return json.data;
 }
@@ -112,13 +119,6 @@ const Data = {
   async addFeeding(entry) {
     const record = await callGas('addFeeding', entry);
     cache.feedings.push(record);
-    sortCache();
-    return record;
-  },
-  async updateFeeding(id, updates) {
-    const record = await callGas('updateFeeding', { id, updates });
-    const idx = cache.feedings.findIndex((f) => f.id === id);
-    if (idx !== -1) cache.feedings[idx] = record;
     sortCache();
     return record;
   },
