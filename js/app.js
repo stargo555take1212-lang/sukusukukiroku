@@ -403,6 +403,47 @@ let timerInterval = null;
 let timerStartTime = null; // Date | null
 let feedingViewDate = new Date();
 
+// タイマー中に画面がスリープしてタブが再読み込みされても、開始時刻を
+// 復元できるようにローカルに保持しておく
+const TIMER_STORAGE_KEY = 'sukusuku_timer_start';
+
+function persistTimerStart(date) {
+  if (date) localStorage.setItem(TIMER_STORAGE_KEY, date.toISOString());
+  else localStorage.removeItem(TIMER_STORAGE_KEY);
+}
+
+function loadPersistedTimerStart() {
+  const raw = localStorage.getItem(TIMER_STORAGE_KEY);
+  return raw ? new Date(raw) : null;
+}
+
+// タイマー中は画面が暗くならないようにする(対応ブラウザのみ)
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+  } catch (err) {
+    console.error('画面のスリープ防止に失敗しました', err);
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release();
+    wakeLock = null;
+  }
+}
+
+// タブが再度表示されたとき、タイマー中ならスリープ防止を取り直す
+// (仕様上、非表示になると自動的に解除されるため)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && timerStartTime) {
+    requestWakeLock();
+  }
+});
+
 // 手入力カードのラベル・入力欄の見た目を、上部のタイプと手入力サブタイプに合わせて更新する
 function updateManualEntryFields() {
   const isMilk = feedingType === 'milk';
@@ -437,6 +478,7 @@ function setupFeedingScreen() {
   });
 
   document.getElementById('timer-toggle-btn').addEventListener('click', toggleTimer);
+  restoreTimerIfNeeded();
   document.getElementById('milk-save-btn').addEventListener('click', saveMilkEntry);
   document.getElementById('manual-entry-toggle-btn').addEventListener('click', () => {
     document.getElementById('manual-entry-card').classList.toggle('hidden');
@@ -458,13 +500,17 @@ async function toggleTimer() {
   const btn = document.getElementById('timer-toggle-btn');
   if (!timerStartTime) {
     timerStartTime = new Date();
+    persistTimerStart(timerStartTime);
     btn.textContent = '■ 停止する';
     timerInterval = setInterval(updateTimerDisplay, 1000);
+    requestWakeLock();
   } else {
     clearInterval(timerInterval);
+    releaseWakeLock();
     const startTime = timerStartTime;
     const durationMin = Math.max(1, Math.round((new Date() - startTime) / 60000));
     timerStartTime = null;
+    persistTimerStart(null);
     document.getElementById('timer-display').textContent = '00:00:00';
     setButtonBusy(btn, true, '保存中…');
     try {
@@ -478,6 +524,19 @@ async function toggleTimer() {
       btn.textContent = '▶ 開始する';
     }
   }
+}
+
+// ページ再読み込み後もタイマーが動いていたことにできるよう、
+// 保存されている開始時刻があれば復元する
+function restoreTimerIfNeeded() {
+  const saved = loadPersistedTimerStart();
+  if (!saved) return;
+  timerStartTime = saved;
+  const btn = document.getElementById('timer-toggle-btn');
+  btn.textContent = '■ 停止する';
+  updateTimerDisplay();
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+  requestWakeLock();
 }
 
 function updateTimerDisplay() {
