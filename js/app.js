@@ -134,16 +134,20 @@ function getScreenRefreshButton(screenName) {
 }
 
 // 書き込みが失敗した際、通信が不安定なだけで実際はGAS側で成功している
-// ことがあるため、最新状態を取り直して画面を実態に合わせ直す
-async function resyncAfterError() {
-  if (!Data.isConfigured()) return;
+// ことがあるため、最新状態を取り直して画面を実態に合わせ直す。
+// checkFn を渡すと、取り直した最新データに対して判定し、実は保存(削除)
+// できていたかどうかを true/false で返す(呼び出し側でエラー表示を省略できる)。
+async function resyncAfterError(checkFn) {
+  if (!Data.isConfigured()) return false;
   const refreshBtn = currentScreen ? getScreenRefreshButton(currentScreen) : null;
   if (refreshBtn) refreshBtn.classList.add('spinning');
   try {
     await Data.refresh();
     if (currentScreen) renderScreen(currentScreen);
+    return checkFn ? !!checkFn() : false;
   } catch (err) {
     console.error('再同期に失敗しました', err);
+    return false;
   } finally {
     if (refreshBtn) refreshBtn.classList.remove('spinning');
   }
@@ -387,12 +391,16 @@ function setupAvatarUpload() {
     fileInput.value = '';
     if (!file) return;
     showLoading(true);
+    let dataUrl;
     try {
-      const dataUrl = await resizeImageToDataUrl(file, 320, 45000);
+      dataUrl = await resizeImageToDataUrl(file, 320, 45000);
       await Data.saveChild({ photo: dataUrl });
       renderHome();
     } catch (err) {
-      alert('写真の保存に失敗しました: ' + err.message);
+      // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+      const recovered = dataUrl && await resyncAfterError(() => Data.getChild().photo === dataUrl);
+      if (!recovered) alert('写真の保存に失敗しました: ' + err.message);
+      else renderHome();
     } finally {
       showLoading(false);
     }
@@ -517,12 +525,16 @@ async function toggleTimer() {
     persistTimerStart(null);
     document.getElementById('timer-display').textContent = '00:00:00';
     setButtonBusy(btn, true, '保存中…');
+    const tsIso = startTime.toISOString();
     try {
-      await Data.addFeeding({ type: 'breast', timestamp: startTime.toISOString(), durationMin });
+      await Data.addFeeding({ type: 'breast', timestamp: tsIso, durationMin });
       renderFeedingList();
     } catch (err) {
-      alert('保存に失敗しました: ' + err.message);
-      await resyncAfterError();
+      // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+      const recovered = await resyncAfterError(() =>
+        Data.getFeedings().some((f) => f.type === 'breast' && f.timestamp === tsIso && f.durationMin === durationMin)
+      );
+      if (!recovered) alert('保存に失敗しました: ' + err.message);
     } finally {
       setButtonBusy(btn, false);
       btn.textContent = '▶ 開始する';
@@ -556,14 +568,19 @@ async function saveMilkEntry() {
   const amount = parseInt(input.value, 10);
   if (!amount || amount <= 0) { alert('ミルクの量を入力してください'); return; }
   const btn = document.getElementById('milk-save-btn');
+  const tsIso = new Date().toISOString();
   setButtonBusy(btn, true);
   try {
-    await Data.addFeeding({ type: 'milk', timestamp: new Date().toISOString(), amountMl: amount });
+    await Data.addFeeding({ type: 'milk', timestamp: tsIso, amountMl: amount });
     input.value = '';
     renderFeedingList();
   } catch (err) {
-    alert('保存に失敗しました: ' + err.message);
-    await resyncAfterError();
+    // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+    const recovered = await resyncAfterError(() =>
+      Data.getFeedings().some((f) => f.type === 'milk' && f.timestamp === tsIso && f.amountMl === amount)
+    );
+    if (!recovered) alert('保存に失敗しました: ' + err.message);
+    else input.value = '';
   } finally {
     setButtonBusy(btn, false);
   }
@@ -601,8 +618,19 @@ async function saveManualEntry() {
     document.getElementById('manual-entry-card').classList.add('hidden');
     renderFeedingList();
   } catch (err) {
-    alert('保存に失敗しました: ' + err.message);
-    await resyncAfterError();
+    // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+    const recovered = await resyncAfterError(() =>
+      Data.getFeedings().some((f) => f.type === entry.type && f.timestamp === entry.timestamp &&
+        (entry.durationMin != null ? f.durationMin === entry.durationMin : f.amountMl === entry.amountMl))
+    );
+    if (!recovered) {
+      alert('保存に失敗しました: ' + err.message);
+    } else {
+      resetTimeSelect(hourEl, minuteEl);
+      durationSelect.value = '';
+      valueInput.value = '';
+      document.getElementById('manual-entry-card').classList.add('hidden');
+    }
   } finally {
     setButtonBusy(btn, false);
   }
@@ -653,10 +681,11 @@ function renderFeedingList() {
           await Data.deleteFeeding(f.id);
           renderFeedingList();
         } catch (err) {
-          alert('削除に失敗しました: ' + err.message);
           setButtonBusy(e.target, false);
           unmarkRowRemoving(item);
-          await resyncAfterError();
+          // 通信が不安定なだけで実際は削除できている場合があるため、取り直して確認する
+          const recovered = await resyncAfterError(() => !Data.getFeedings().some((x) => x.id === f.id));
+          if (!recovered) alert('削除に失敗しました: ' + err.message);
         }
       }
     });
@@ -673,15 +702,25 @@ function setupGrowthScreen() {
     const weight = parseInt(document.getElementById('growth-weight-input').value, 10);
     const height = parseFloat(document.getElementById('growth-height-input').value);
     if (!date || (!weight && !height)) { alert('日付と、体重または身長を入力してください'); return; }
+    const weightG = weight || null;
+    const heightCm = height || null;
     setButtonBusy(e.target, true);
     try {
-      await Data.addGrowth({ date, weightG: weight || null, heightCm: height || null });
+      await Data.addGrowth({ date, weightG, heightCm });
       document.getElementById('growth-weight-input').value = '';
       document.getElementById('growth-height-input').value = '';
       renderGrowthScreen();
     } catch (err) {
-      alert('保存に失敗しました: ' + err.message);
-      await resyncAfterError();
+      // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+      const recovered = await resyncAfterError(() =>
+        Data.getGrowth().some((g) => toDateOnly(g.date) === date && g.weightG === weightG && g.heightCm === heightCm)
+      );
+      if (!recovered) {
+        alert('保存に失敗しました: ' + err.message);
+      } else {
+        document.getElementById('growth-weight-input').value = '';
+        document.getElementById('growth-height-input').value = '';
+      }
     } finally {
       setButtonBusy(e.target, false);
     }
@@ -826,10 +865,11 @@ function renderGrowthList(list) {
           await Data.deleteGrowth(g.id);
           renderGrowthScreen();
         } catch (err) {
-          alert('削除に失敗しました: ' + err.message);
           setButtonBusy(e.target, false);
           unmarkRowRemoving(item);
-          await resyncAfterError();
+          // 通信が不安定なだけで実際は削除できている場合があるため、取り直して確認する
+          const recovered = await resyncAfterError(() => !Data.getGrowth().some((x) => x.id === g.id));
+          if (!recovered) alert('削除に失敗しました: ' + err.message);
         }
       }
     });
@@ -878,14 +918,19 @@ function setupPoopScreen() {
     const [h, m] = timeVal.split(':').map(Number);
     const ts = new Date();
     ts.setHours(h, m, 0, 0);
+    const tsIso = ts.toISOString();
+    const size = poopSize;
 
     setButtonBusy(e.target, true);
     try {
-      await Data.addPoop({ timestamp: ts.toISOString(), size: poopSize });
+      await Data.addPoop({ timestamp: tsIso, size });
       renderPoopScreen();
     } catch (err) {
-      alert('保存に失敗しました: ' + err.message);
-      await resyncAfterError();
+      // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+      const recovered = await resyncAfterError(() =>
+        Data.getPoop().some((p) => p.timestamp === tsIso && p.size === size)
+      );
+      if (!recovered) alert('保存に失敗しました: ' + err.message);
     } finally {
       setButtonBusy(e.target, false);
     }
@@ -935,10 +980,11 @@ function renderPoopList() {
           await Data.deletePoop(p.id);
           renderPoopList();
         } catch (err) {
-          alert('削除に失敗しました: ' + err.message);
           setButtonBusy(e.target, false);
           unmarkRowRemoving(item);
-          await resyncAfterError();
+          // 通信が不安定なだけで実際は削除できている場合があるため、取り直して確認する
+          const recovered = await resyncAfterError(() => !Data.getPoop().some((x) => x.id === p.id));
+          if (!recovered) alert('削除に失敗しました: ' + err.message);
         }
       }
     });
@@ -961,13 +1007,23 @@ function setupSettingsScreen() {
   document.getElementById('settings-save-btn').addEventListener('click', async () => {
     const name = document.getElementById('settings-name-input').value.trim();
     const birthdate = document.getElementById('settings-birthdate-input').value;
+    const sex = settingsSex;
     try {
-      await Data.saveChild({ name, birthdate, sex: settingsSex });
+      await Data.saveChild({ name, birthdate, sex });
       alert('保存しました');
       renderHome();
     } catch (err) {
-      alert('保存に失敗しました: ' + err.message);
-      await resyncAfterError();
+      // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+      const recovered = await resyncAfterError(() => {
+        const c = Data.getChild();
+        return (c.name || '') === name && toDateOnly(c.birthdate || '') === (birthdate || '') && (c.sex || null) === (sex || null);
+      });
+      if (!recovered) {
+        alert('保存に失敗しました: ' + err.message);
+      } else {
+        alert('保存しました');
+        renderHome();
+      }
     }
   });
 
