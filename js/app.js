@@ -508,37 +508,55 @@ function setupFeedingScreen() {
   });
 }
 
+// 止め忘れ対策: これ以上経過したら自動的に停止・保存する
+const AUTO_STOP_MINUTES = 20;
+let autoStopping = false; // 自動停止処理の多重実行防止
+
 async function toggleTimer() {
-  const btn = document.getElementById('timer-toggle-btn');
   if (!timerStartTime) {
+    const btn = document.getElementById('timer-toggle-btn');
     timerStartTime = new Date();
     persistTimerStart(timerStartTime);
     btn.textContent = '■ 停止する';
     timerInterval = setInterval(updateTimerDisplay, 1000);
     requestWakeLock();
   } else {
-    clearInterval(timerInterval);
-    releaseWakeLock();
-    const startTime = timerStartTime;
-    const durationMin = Math.max(1, Math.round((new Date() - startTime) / 60000));
-    timerStartTime = null;
-    persistTimerStart(null);
-    document.getElementById('timer-display').textContent = '00:00:00';
-    setButtonBusy(btn, true, '保存中…');
-    const tsIso = startTime.toISOString();
-    try {
-      await Data.addFeeding({ type: 'breast', timestamp: tsIso, durationMin });
-      renderFeedingList();
-    } catch (err) {
-      // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
-      const recovered = await resyncAfterError(() =>
-        Data.getFeedings().some((f) => f.type === 'breast' && f.timestamp === tsIso && f.durationMin === durationMin)
-      );
-      if (!recovered) alert('保存に失敗しました: ' + err.message);
-    } finally {
-      setButtonBusy(btn, false);
-      btn.textContent = '▶ 開始する';
-    }
+    await stopTimerAndSave(false);
+  }
+}
+
+// タイマーを停止して記録を保存する。auto=trueの場合は止め忘れによる自動停止。
+async function stopTimerAndSave(auto) {
+  if (!timerStartTime || autoStopping) return;
+  autoStopping = true;
+  const btn = document.getElementById('timer-toggle-btn');
+  clearInterval(timerInterval);
+  releaseWakeLock();
+  const startTime = timerStartTime;
+  const durationMin = Math.max(1, Math.round((new Date() - startTime) / 60000));
+  timerStartTime = null;
+  persistTimerStart(null);
+  document.getElementById('timer-display').textContent = '00:00:00';
+  setButtonBusy(btn, true, '保存中…');
+  const tsIso = startTime.toISOString();
+  const notifyAutoStop = () => {
+    if (auto) alert(`${AUTO_STOP_MINUTES}分経過したため、タイマーを自動的に停止して記録しました。`);
+  };
+  try {
+    await Data.addFeeding({ type: 'breast', timestamp: tsIso, durationMin });
+    renderFeedingList();
+    notifyAutoStop();
+  } catch (err) {
+    // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+    const recovered = await resyncAfterError(() =>
+      Data.getFeedings().some((f) => f.type === 'breast' && f.timestamp === tsIso && f.durationMin === durationMin)
+    );
+    if (!recovered) alert('保存に失敗しました: ' + err.message);
+    else notifyAutoStop();
+  } finally {
+    setButtonBusy(btn, false);
+    btn.textContent = '▶ 開始する';
+    autoStopping = false;
   }
 }
 
@@ -551,12 +569,19 @@ function restoreTimerIfNeeded() {
   const btn = document.getElementById('timer-toggle-btn');
   btn.textContent = '■ 停止する';
   updateTimerDisplay();
+  // 上のupdateTimerDisplay()で20分超過による自動停止が走った場合、
+  // timerStartTimeはnullに戻っているのでインターバル/画面ロック防止は不要
+  if (!timerStartTime) return;
   timerInterval = setInterval(updateTimerDisplay, 1000);
   requestWakeLock();
 }
 
 function updateTimerDisplay() {
   const diff = Math.floor((new Date() - timerStartTime) / 1000);
+  if (diff >= AUTO_STOP_MINUTES * 60) {
+    stopTimerAndSave(true);
+    return;
+  }
   const h = pad2(Math.floor(diff / 3600));
   const m = pad2(Math.floor((diff % 3600) / 60));
   const s = pad2(diff % 60);
