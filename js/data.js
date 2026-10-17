@@ -36,12 +36,16 @@ function persistCache() {
   }
 }
 
-let cache = loadPersistedCache() || {
+// 以前のバージョンで保存されたキャッシュには無い項目もあるため、
+// デフォルト値とマージして未定義のフィールドが残らないようにする
+const DEFAULT_CACHE = {
   child: { name: '', birthdate: '' },
   feedings: [],
   growth: [],
   poop: [],
+  milestones: [],
 };
+let cache = Object.assign({}, DEFAULT_CACHE, loadPersistedCache() || {});
 
 function sortCache() {
   cache.feedings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -94,6 +98,7 @@ const Data = {
         cache.feedings = data.feedings || [];
         cache.growth = data.growth || [];
         cache.poop = data.poop || [];
+        cache.milestones = data.milestones || [];
         sortCache();
       } finally {
         this._inflightRefresh = null;
@@ -157,6 +162,23 @@ const Data = {
   async deletePoop(id) {
     await callGas('deletePoop', { id });
     cache.poop = cache.poop.filter((p) => p.id !== id);
+    persistCache();
+  },
+
+  // ---------------- 発達マイルストーン ----------------
+  getMilestones() {
+    return cache.milestones;
+  },
+  async saveMilestone(entry) {
+    const record = await callGas('saveMilestone', entry);
+    cache.milestones = cache.milestones.filter((m) => m.milestone !== record.milestone);
+    cache.milestones.push(record);
+    persistCache();
+    return record;
+  },
+  async deleteMilestone(milestone) {
+    await callGas('deleteMilestone', { milestone });
+    cache.milestones = cache.milestones.filter((m) => m.milestone !== milestone);
     persistCache();
   },
 };

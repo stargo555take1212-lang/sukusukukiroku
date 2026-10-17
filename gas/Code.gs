@@ -16,6 +16,8 @@ const SHEET_DEFS = {
   FEEDINGS: { name: 'Feedings', headers: ['id', 'type', 'timestamp', 'durationMin', 'amountMl'], textColumns: ['id', 'timestamp'] },
   GROWTH: { name: 'Growth', headers: ['id', 'date', 'weightG', 'heightCm'], textColumns: ['id', 'date'] },
   POOP: { name: 'Poop', headers: ['id', 'timestamp', 'size'], textColumns: ['id', 'timestamp'] },
+  // milestone(首すわり等のキー)ごとに1行。未達成の間は行自体が存在しない
+  MILESTONES: { name: 'Milestones', headers: ['milestone', 'date'], textColumns: ['milestone', 'date'] },
 };
 
 function doGet(e) {
@@ -59,6 +61,8 @@ function handleAction(action, payload) {
     case 'deleteGrowth': return deleteGrowth(payload.id);
     case 'addPoop': return addPoop(payload);
     case 'deletePoop': return deletePoop(payload.id);
+    case 'saveMilestone': return saveMilestone(payload);
+    case 'deleteMilestone': return deleteMilestone(payload.milestone);
     default: throw new Error('未対応のaction: ' + action);
   }
 }
@@ -193,6 +197,40 @@ function deletePoop(id) {
   return { id };
 }
 
+// ---------------- 発達マイルストーン ----------------
+// milestoneキーごとに1行。保存済みなら日付を上書き、未保存なら行を追加する(upsert)
+
+function findRowByColumnValue(sheet, headers, colName, value) {
+  const colIdx = headers.indexOf(colName);
+  const values = sheet.getDataRange().getValues();
+  for (let r = 1; r < values.length; r++) {
+    if (String(values[r][colIdx]) === String(value)) return r + 1; // 1-indexed row number
+  }
+  return -1;
+}
+
+function saveMilestone(payload) {
+  const def = SHEET_DEFS.MILESTONES;
+  const sheet = getSheet(def);
+  const record = { milestone: payload.milestone, date: payload.date };
+  const rowNum = findRowByColumnValue(sheet, def.headers, 'milestone', record.milestone);
+  const row = def.headers.map((h) => (record[h] == null ? '' : record[h]));
+  if (rowNum !== -1) {
+    sheet.getRange(rowNum, 1, 1, def.headers.length).setValues([row]);
+  } else {
+    sheet.appendRow(row);
+  }
+  return record;
+}
+
+function deleteMilestone(milestone) {
+  const def = SHEET_DEFS.MILESTONES;
+  const sheet = getSheet(def);
+  const rowNum = findRowByColumnValue(sheet, def.headers, 'milestone', milestone);
+  if (rowNum !== -1) sheet.deleteRow(rowNum);
+  return { milestone };
+}
+
 // ---------------- 全件取得 ----------------
 
 function getAll() {
@@ -201,6 +239,7 @@ function getAll() {
     feedings: sheetToObjects(getSheet(SHEET_DEFS.FEEDINGS)).map(stripRow),
     growth: sheetToObjects(getSheet(SHEET_DEFS.GROWTH)).map(stripRow),
     poop: sheetToObjects(getSheet(SHEET_DEFS.POOP)).map(stripRow),
+    milestones: sheetToObjects(getSheet(SHEET_DEFS.MILESTONES)).map(stripRow),
   };
 }
 

@@ -767,6 +767,66 @@ function renderGrowthScreen() {
   if (canShowCurve) drawGrowthCurveChart(child, list);
 
   renderGrowthList(list);
+  renderMilestoneList();
+}
+
+// ---------------- 発達マイルストーン ----------------
+
+const MILESTONE_DEFS = [
+  { key: 'neckSupport', label: '首すわり' },
+  { key: 'rollOver', label: '寝返り' },
+  { key: 'sitting', label: 'お座り' },
+  { key: 'crawling', label: 'ハイハイ' },
+  { key: 'standingHold', label: 'つかまり立ち' },
+  { key: 'cruising', label: '伝い歩き' },
+  { key: 'walking', label: '1人歩き' },
+  { key: 'firstWord', label: '意味のある単語1個' },
+];
+
+function renderMilestoneList() {
+  const container = document.getElementById('milestone-list');
+  const milestones = Data.getMilestones();
+  container.innerHTML = '';
+
+  MILESTONE_DEFS.forEach((def) => {
+    const record = milestones.find((m) => m.milestone === def.key);
+    const dateVal = record ? toDateOnly(record.date) : '';
+
+    const row = document.createElement('div');
+    row.className = 'milestone-row';
+    row.innerHTML = `
+      <span class="milestone-check">${dateVal ? '✅' : '⬜'}</span>
+      <span class="milestone-label">${def.label}</span>
+      <input type="date" value="${dateVal}">
+      <button class="record-action" aria-label="保存">💾</button>
+    `;
+    const input = row.querySelector('input[type="date"]');
+    const saveBtn = row.querySelector('.record-action');
+    saveBtn.addEventListener('click', async () => {
+      const newDate = input.value;
+      if (newDate === dateVal) return; // 変更がなければ何もしない
+      setButtonBusy(saveBtn, true, '…');
+      try {
+        if (newDate) {
+          await Data.saveMilestone({ milestone: def.key, date: newDate });
+        } else if (record) {
+          await Data.deleteMilestone(def.key);
+        }
+        renderMilestoneList();
+      } catch (err) {
+        // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+        const recovered = await resyncAfterError(() => {
+          const m = Data.getMilestones().find((x) => x.milestone === def.key);
+          return newDate ? !!(m && toDateOnly(m.date) === newDate) : !m;
+        });
+        if (!recovered) {
+          alert('保存に失敗しました: ' + err.message);
+          setButtonBusy(saveBtn, false);
+        }
+      }
+    });
+    container.appendChild(row);
+  });
 }
 
 // 日時付き文字列(スプレッドシート側で日付型に化けた場合など)が来ても
