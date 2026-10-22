@@ -193,6 +193,14 @@ html, body {
 /* ---------- Timer ---------- */
 .timer-display { font-size: 30px; font-weight: 700; color: var(--c-pink-900); margin: 4px 0 14px; }
 #breast-timer-card .btn { width: auto; padding: 10px 28px; display: inline-block; }
+.quick-feed-label { font-size: 11px; color: var(--c-pink-800); opacity: 0.8; margin: 14px 0 6px; }
+.quick-feed-row { display: flex; gap: 8px; justify-content: center; }
+.btn-quick {
+  flex: 1; max-width: 90px; background: var(--bg-card); border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-sm); color: var(--c-pink-900); font-family: inherit;
+  font-size: 13px; font-weight: 700; padding: 9px; cursor: pointer;
+}
+.btn-quick:disabled { opacity: 0.6; }
 
 /* ---------- Segmented control ---------- */
 .segmented {
@@ -247,6 +255,15 @@ input[type="text"], input[type="number"], input[type="date"], input[type="time"]
 .record-action { background: none; border: none; color: var(--text-muted); font-size: 15px; cursor: pointer; padding: 4px; }
 .record-item.removing { opacity: 0.45; pointer-events: none; transition: opacity 0.15s ease; }
 .empty-state { font-size: 13px; color: var(--text-muted); padding: 10px 2px; }
+
+/* ---------- Record item edit mode ---------- */
+.record-item.record-item-editing { flex-direction: column; align-items: stretch; gap: 8px; }
+.record-edit-row { display: flex; align-items: center; gap: 8px; }
+.record-edit-row .edit-date-input { flex: 1; }
+.record-edit-row .edit-time-row { flex: 1; }
+.record-edit-row .edit-value-input { flex: 1; width: auto; }
+.record-edit-actions { display: flex; gap: 8px; }
+.record-edit-actions .btn { width: auto; flex: 1; }
 
 /* ---------- Screen header ---------- */
 .screen-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }

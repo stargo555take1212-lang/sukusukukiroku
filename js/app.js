@@ -511,6 +511,9 @@ function setupFeedingScreen() {
 
   document.getElementById('timer-toggle-btn').addEventListener('click', toggleTimer);
   restoreTimerIfNeeded();
+  document.querySelectorAll('#quick-feed-row .btn-quick').forEach((btn) => {
+    btn.addEventListener('click', () => saveQuickFeeding(Number(btn.dataset.minutes), btn));
+  });
   document.getElementById('milk-save-btn').addEventListener('click', saveMilkEntry);
   document.getElementById('manual-entry-toggle-btn').addEventListener('click', () => {
     document.getElementById('manual-entry-card').classList.toggle('hidden');
@@ -532,6 +535,32 @@ function setupFeedingScreen() {
 const AUTO_STOP_MINUTES = 20;
 let autoStopping = false; // 自動停止処理の多重実行防止
 
+// タイマーと「○分で記録」ボタンを同時に使うと紛らわしいため、
+// タイマー作動中はクイック記録ボタンを無効化する
+function setQuickFeedButtonsDisabled(disabled) {
+  document.querySelectorAll('#quick-feed-row .btn-quick').forEach((btn) => { btn.disabled = disabled; });
+}
+
+// タイマーを使わず、「ちょうど今、○分授乳した」をワンタップで記録する
+// (開始時刻 = 今からminutes分前として記録する)
+async function saveQuickFeeding(minutes, btn) {
+  const startTime = new Date(Date.now() - minutes * 60000);
+  const tsIso = startTime.toISOString();
+  setButtonBusy(btn, true, '…');
+  try {
+    await Data.addFeeding({ type: 'breast', timestamp: tsIso, durationMin: minutes });
+    renderFeedingList();
+  } catch (err) {
+    // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+    const recovered = await resyncAfterError(() =>
+      Data.getFeedings().some((f) => f.type === 'breast' && f.timestamp === tsIso && f.durationMin === minutes)
+    );
+    if (!recovered) alert('保存に失敗しました: ' + err.message);
+  } finally {
+    setButtonBusy(btn, false);
+  }
+}
+
 async function toggleTimer() {
   if (!timerStartTime) {
     const btn = document.getElementById('timer-toggle-btn');
@@ -540,6 +569,7 @@ async function toggleTimer() {
     btn.textContent = '■ 停止する';
     timerInterval = setInterval(updateTimerDisplay, 1000);
     requestWakeLock();
+    setQuickFeedButtonsDisabled(true);
   } else {
     await stopTimerAndSave(false);
   }
@@ -580,6 +610,7 @@ async function stopTimerAndSave(auto) {
     setButtonBusy(btn, false);
     btn.textContent = '▶ 開始する';
     autoStopping = false;
+    setQuickFeedButtonsDisabled(false);
   }
 }
 
@@ -591,6 +622,7 @@ function restoreTimerIfNeeded() {
   timerStartTime = saved;
   const btn = document.getElementById('timer-toggle-btn');
   btn.textContent = '■ 停止する';
+  setQuickFeedButtonsDisabled(true);
   updateTimerDisplay();
   // 上のupdateTimerDisplay()で20分超過による自動停止が走った場合、
   // timerStartTimeはnullに戻っているのでインターバル/画面ロック防止は不要
@@ -710,34 +742,108 @@ function renderFeedingList() {
   todays.forEach((f) => {
     const item = document.createElement('div');
     item.className = 'record-item';
-    const isBreast = f.type === 'breast';
-    const isPump = f.type === 'pump';
-    const sub = isBreast ? `母乳・${f.durationMin}分` : isPump ? `搾乳・${f.amountMl}ml` : `ミルク・${f.amountMl}ml`;
-    item.innerHTML = `
-      <div class="record-icon" style="background:${isBreast ? 'var(--c-pink-50)' : isPump ? 'var(--c-teal-50)' : 'var(--c-purple-50)'}">🍼</div>
-      <div class="record-item-body">
-        <p class="record-item-time">${formatTimeHM(new Date(f.timestamp))}</p>
-        <p class="record-item-sub">${sub}</p>
-      </div>
-      <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
-    `;
-    item.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
-      if (confirm('この記録を削除しますか？')) {
-        setButtonBusy(e.target, true, '…');
-        markRowRemoving(item);
-        try {
-          await Data.deleteFeeding(f.id);
-          renderFeedingList();
-        } catch (err) {
-          setButtonBusy(e.target, false);
-          unmarkRowRemoving(item);
-          // 通信が不安定なだけで実際は削除できている場合があるため、取り直して確認する
-          const recovered = await resyncAfterError(() => !Data.getFeedings().some((x) => x.id === f.id));
-          if (!recovered) alert('削除に失敗しました: ' + err.message);
-        }
-      }
-    });
+    renderFeedingItemView(item, f);
     container.appendChild(item);
+  });
+}
+
+function renderFeedingItemView(item, f) {
+  const isBreast = f.type === 'breast';
+  const isPump = f.type === 'pump';
+  const sub = isBreast ? `母乳・${f.durationMin}分` : isPump ? `搾乳・${f.amountMl}ml` : `ミルク・${f.amountMl}ml`;
+  item.innerHTML = `
+    <div class="record-icon" style="background:${isBreast ? 'var(--c-pink-50)' : isPump ? 'var(--c-teal-50)' : 'var(--c-purple-50)'}">🍼</div>
+    <div class="record-item-body">
+      <p class="record-item-time">${formatTimeHM(new Date(f.timestamp))}</p>
+      <p class="record-item-sub">${sub}</p>
+    </div>
+    <button class="record-action" data-action="edit" aria-label="編集">✏️</button>
+    <button class="record-action" data-action="delete" aria-label="削除">🗑</button>
+  `;
+  item.querySelector('[data-action="edit"]').addEventListener('click', () => {
+    renderFeedingItemEdit(item, f);
+  });
+  item.querySelector('[data-action="delete"]').addEventListener('click', async (e) => {
+    if (confirm('この記録を削除しますか？')) {
+      setButtonBusy(e.target, true, '…');
+      markRowRemoving(item);
+      try {
+        await Data.deleteFeeding(f.id);
+        renderFeedingList();
+      } catch (err) {
+        setButtonBusy(e.target, false);
+        unmarkRowRemoving(item);
+        // 通信が不安定なだけで実際は削除できている場合があるため、取り直して確認する
+        const recovered = await resyncAfterError(() => !Data.getFeedings().some((x) => x.id === f.id));
+        if (!recovered) alert('削除に失敗しました: ' + err.message);
+      }
+    }
+  });
+}
+
+function renderFeedingItemEdit(item, f) {
+  const isBreast = f.type === 'breast';
+  const ts = new Date(f.timestamp);
+  const valueLabel = isBreast ? '分' : 'ml';
+  const valueNow = isBreast ? f.durationMin : f.amountMl;
+
+  item.classList.add('record-item-editing');
+  item.innerHTML = `
+    <div class="record-edit-row">
+      <input type="date" class="edit-date-input" value="${todayDateStr(ts)}">
+      <div class="time-select-row edit-time-row">
+        <select class="edit-hour"></select><span>:</span><select class="edit-minute"></select>
+      </div>
+    </div>
+    <div class="record-edit-row">
+      <input type="number" class="edit-value-input" inputmode="decimal" value="${valueNow}">
+      <span class="field-suffix">${valueLabel}</span>
+    </div>
+    <div class="record-edit-actions">
+      <button class="btn btn-ghost btn-small edit-cancel-btn">キャンセル</button>
+      <button class="btn btn-primary btn-small edit-save-btn">保存</button>
+    </div>
+  `;
+  const hourEl = item.querySelector('.edit-hour');
+  const minuteEl = item.querySelector('.edit-minute');
+  // タイマー発の記録は分が5分刻みとは限らないため、既存値と確実に一致するよう1分刻みにする
+  populateTimeSelects(hourEl, minuteEl, 1);
+  hourEl.value = pad2(ts.getHours());
+  minuteEl.value = pad2(ts.getMinutes());
+
+  item.querySelector('.edit-cancel-btn').addEventListener('click', () => {
+    item.classList.remove('record-item-editing');
+    renderFeedingItemView(item, f);
+  });
+
+  item.querySelector('.edit-save-btn').addEventListener('click', async (e) => {
+    const dateVal = item.querySelector('.edit-date-input').value;
+    const timeVal = getTimeSelectValue(hourEl, minuteEl);
+    const valueVal = parseFloat(item.querySelector('.edit-value-input').value);
+    if (!dateVal || !timeVal || !valueVal) { alert('日付・時刻と数値を入力してください'); return; }
+
+    const [h, m] = timeVal.split(':').map(Number);
+    const newTs = new Date(`${dateVal}T00:00:00`);
+    newTs.setHours(h, m, 0, 0);
+    const patch = { timestamp: newTs.toISOString() };
+    if (isBreast) patch.durationMin = valueVal;
+    else patch.amountMl = valueVal;
+
+    setButtonBusy(e.target, true);
+    try {
+      await Data.updateFeeding(f.id, patch);
+      renderFeedingList();
+    } catch (err) {
+      // 通信が不安定なだけで実際は保存できている場合があるため、取り直して確認する
+      const recovered = await resyncAfterError(() =>
+        Data.getFeedings().some((x) => x.id === f.id && x.timestamp === patch.timestamp &&
+          (patch.durationMin != null ? x.durationMin === patch.durationMin : x.amountMl === patch.amountMl))
+      );
+      if (!recovered) {
+        alert('保存に失敗しました: ' + err.message);
+        setButtonBusy(e.target, false);
+      }
+    }
   });
 }
 

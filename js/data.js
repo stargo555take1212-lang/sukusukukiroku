@@ -127,6 +127,13 @@ const Data = {
     sortCache();
     return record;
   },
+  async updateFeeding(id, patch) {
+    const record = await callGas('updateFeeding', { id, patch });
+    cache.feedings = cache.feedings.filter((f) => f.id !== id);
+    cache.feedings.push(record);
+    sortCache();
+    return record;
+  },
   async deleteFeeding(id) {
     await callGas('deleteFeeding', { id });
     cache.feedings = cache.feedings.filter((f) => f.id !== id);

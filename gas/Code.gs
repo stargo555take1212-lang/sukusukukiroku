@@ -56,6 +56,7 @@ function handleAction(action, payload) {
   switch (action) {
     case 'saveChild': return saveChild(payload);
     case 'addFeeding': return addFeeding(payload);
+    case 'updateFeeding': return updateFeeding(payload.id, payload.patch);
     case 'deleteFeeding': return deleteFeeding(payload.id);
     case 'addGrowth': return addGrowth(payload);
     case 'deleteGrowth': return deleteGrowth(payload.id);
@@ -157,6 +158,18 @@ function deleteFeeding(id) {
   const rowNum = findRowById(sheet, def.headers, id);
   if (rowNum !== -1) sheet.deleteRow(rowNum);
   return { id };
+}
+
+function updateFeeding(id, patch) {
+  const def = SHEET_DEFS.FEEDINGS;
+  const sheet = getSheet(def);
+  const rowNum = findRowById(sheet, def.headers, id);
+  if (rowNum === -1) throw new Error('対象の記録が見つかりません');
+  const current = rowToObject(def.headers, sheet.getRange(rowNum, 1, 1, def.headers.length).getValues()[0]);
+  const merged = Object.assign({}, current, patch, { id });
+  const row = def.headers.map((h) => (merged[h] == null ? '' : merged[h]));
+  sheet.getRange(rowNum, 1, 1, def.headers.length).setValues([row]);
+  return merged;
 }
 
 // ---------------- 成長記録 ----------------
