@@ -256,15 +256,18 @@ input[type="text"], input[type="number"], input[type="date"], input[type="time"]
 /* ---------- Milestones ---------- */
 .milestone-list { display: flex; flex-direction: column; gap: 8px; }
 .milestone-row {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; gap: 6px;
   background: var(--bg-card-muted); border-radius: var(--radius-sm); padding: 8px 10px;
 }
+.milestone-top { display: flex; align-items: center; gap: 8px; }
 .milestone-check { font-size: 13px; flex-shrink: 0; }
 .milestone-label {
   flex: 1; min-width: 0; font-size: 13px; font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.milestone-row input[type="date"] { width: auto; flex: 0 1 128px; font-size: 12px; padding: 7px 8px; }
+.milestone-age { font-size: 11px; color: var(--c-pink-600); font-weight: 700; flex-shrink: 0; white-space: nowrap; }
+.milestone-bottom { display: flex; align-items: center; gap: 8px; }
+.milestone-row input[type="date"] { width: auto; flex: 1; font-size: 12px; padding: 7px 8px; }
 
 /* ---------- Growth ---------- */
 .growth-current-value { font-size: 21px; font-weight: 700; margin: 0 0 6px; }

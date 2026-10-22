@@ -111,6 +111,26 @@ function calcAgeText(birthdateStr) {
   return `生後${months}か月 ${days}日`;
 }
 
+// 生年月日からみて、targetDateStr時点で何歳何か月だったかを表す文字列を返す
+function calcAgeAtDateText(birthdateStr, targetDateStr) {
+  if (!birthdateStr || !targetDateStr) return '';
+  const birth = new Date(`${toDateOnly(birthdateStr)}T00:00:00`);
+  const target = new Date(`${toDateOnly(targetDateStr)}T00:00:00`);
+  if (target < birth) return '';
+
+  let months = (target.getFullYear() - birth.getFullYear()) * 12 + (target.getMonth() - birth.getMonth());
+  const anchor = addMonths(birth, months);
+  let days = Math.floor((target - anchor) / (1000 * 60 * 60 * 24));
+  if (days < 0) {
+    months -= 1;
+    const anchor2 = addMonths(birth, months);
+    days = Math.floor((target - anchor2) / (1000 * 60 * 60 * 24));
+  }
+  const years = Math.floor(months / 12);
+  const remMonths = months % 12;
+  return years > 0 ? `${years}歳${remMonths}ヶ月` : `生後${months}ヶ月${days}日`;
+}
+
 // ---------------- ナビゲーション ----------------
 
 function showLoading(visible) {
@@ -533,7 +553,10 @@ async function stopTimerAndSave(auto) {
   clearInterval(timerInterval);
   releaseWakeLock();
   const startTime = timerStartTime;
-  const durationMin = Math.max(1, Math.round((new Date() - startTime) / 60000));
+  const rawDurationMin = Math.max(1, Math.round((new Date() - startTime) / 60000));
+  // 自動停止の場合、画面がスリープしていた間に検知が遅れることがあるため、
+  // 実経過時間ではなく上限(AUTO_STOP_MINUTES)で記録時間を打ち切る
+  const durationMin = auto ? Math.min(rawDurationMin, AUTO_STOP_MINUTES) : rawDurationMin;
   timerStartTime = null;
   persistTimerStart(null);
   document.getElementById('timer-display').textContent = '00:00:00';
@@ -786,6 +809,7 @@ const MILESTONE_DEFS = [
 function renderMilestoneList() {
   const container = document.getElementById('milestone-list');
   const milestones = Data.getMilestones();
+  const birthdate = Data.getChild().birthdate;
   container.innerHTML = '';
 
   MILESTONE_DEFS.forEach((def) => {
@@ -795,13 +819,23 @@ function renderMilestoneList() {
     const row = document.createElement('div');
     row.className = 'milestone-row';
     row.innerHTML = `
-      <span class="milestone-check">${dateVal ? '✅' : '⬜'}</span>
-      <span class="milestone-label">${def.label}</span>
-      <input type="date" value="${dateVal}">
-      <button class="record-action" aria-label="保存">💾</button>
+      <div class="milestone-top">
+        <span class="milestone-check">${dateVal ? '✅' : '⬜'}</span>
+        <span class="milestone-label">${def.label}</span>
+        <span class="milestone-age">${calcAgeAtDateText(birthdate, dateVal)}</span>
+      </div>
+      <div class="milestone-bottom">
+        <input type="date" value="${dateVal}">
+        <button class="record-action" aria-label="保存">💾</button>
+      </div>
     `;
     const input = row.querySelector('input[type="date"]');
+    const ageEl = row.querySelector('.milestone-age');
     const saveBtn = row.querySelector('.record-action');
+    // 保存前でも、日付を選んだ時点でその日の月齢をプレビュー表示する
+    input.addEventListener('change', () => {
+      ageEl.textContent = calcAgeAtDateText(birthdate, input.value);
+    });
     saveBtn.addEventListener('click', async () => {
       const newDate = input.value;
       if (newDate === dateVal) return; // 変更がなければ何もしない
