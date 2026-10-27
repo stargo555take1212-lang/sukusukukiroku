@@ -541,10 +541,10 @@ function setQuickFeedButtonsDisabled(disabled) {
   document.querySelectorAll('#quick-feed-row .btn-quick').forEach((btn) => { btn.disabled = disabled; });
 }
 
-// タイマーを使わず、「ちょうど今、○分授乳した」をワンタップで記録する
-// (開始時刻 = 今からminutes分前として記録する)
+// タイマーを使わず、「今から○分授乳する」をワンタップで記録する
+// (開始時刻 = 押した今の時刻として記録する)
 async function saveQuickFeeding(minutes, btn) {
-  const startTime = new Date(Date.now() - minutes * 60000);
+  const startTime = new Date();
   const tsIso = startTime.toISOString();
   setButtonBusy(btn, true, '…');
   try {
